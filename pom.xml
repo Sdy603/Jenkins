@@ -34,10 +34,12 @@
     <changelist>-SNAPSHOT</changelist>
 
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
-    <jenkins.version>2.414.3</jenkins.version>
+    <jenkins.version>2.451</jenkins.version>
+    <hpi.plugin.compatibleSinceVersion>2.451</hpi.plugin.compatibleSinceVersion>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
 
     <spotless.check.skip>false</spotless.check.skip>
+    <java.level>11</java.level>
   </properties>
 
   <dependencyManagement>
@@ -56,13 +58,11 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>credentials</artifactId>
-      <version>1419.v2337d1ceceef</version>
       <!-- Use the latest version compatible with your Jenkins version -->
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>plain-credentials</artifactId>
-      <version>199.v9f8e1f741799</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
