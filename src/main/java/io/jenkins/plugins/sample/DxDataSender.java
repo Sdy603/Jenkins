@@ -38,19 +38,20 @@ public class DxDataSender {
             System.out.println("Response Code: " + responseCode);
             listener.getLogger().println("Response Code: " + responseCode);
 
-            InputStream responseStream = responseCode >= 300 ? connection.getErrorStream() : connection.getInputStream();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream));
-            StringBuilder response = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
-                response.append(System.lineSeparator());
-            }
+            try (InputStream responseStream = responseCode >= 300 ? connection.getErrorStream() : connection.getInputStream();
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
 
-            if (responseCode >= 300) {
-                JSONObject jsonResponse = new JSONObject(response.toString());
-                System.out.println("Error Message: " + jsonResponse.getString("error"));
-                listener.getLogger().println("Error Message: " + jsonResponse.getString("error"));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line).append(System.lineSeparator());
+                }
+
+                if (responseCode >= 300) {
+                    JSONObject jsonResponse = new JSONObject(response.toString());
+                    System.out.println("Error Message: " + jsonResponse.getString("error"));
+                    listener.getLogger().println("Error Message: " + jsonResponse.getString("error"));
+                }
             }
 
         } catch (Exception e) {
