@@ -35,19 +35,13 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
             return;
         }
 
-        // prepare data
         String jobName = run.getParent().getFullName();
         String referenceId = generateUUID();
         Integer startTime = (int) (run.getStartTimeInMillis() / 1000);
         Integer duration = (int) (run.getDuration() / 1000);
         Integer finishTime = startTime + duration;
         Result result = run.getResult();
-        String status;
-        if (result != null) {
-            status = result.toString().toLowerCase();
-        } else {
-            status = "unknown";
-        }
+        String status = (result != null) ? result.toString().toLowerCase() : "unknown";
 
         EnvVars env;
         try {
@@ -59,28 +53,24 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
         }
 
         String sourceUrl = env.getOrDefault("GIT_URL", "");
-        String repository = extractRepositoryName(sourceUrl);
+        String repository = extractRepositoryPath(sourceUrl);
         String commitSha = env.getOrDefault("GIT_COMMIT", "");
-        String headBranch = env.getOrDefault("BRANCH_NAME", env.getOrDefault("GIT_BRANCH", ""));
+        String headBranch = env.getOrDefault("GIT_BRANCH", env.getOrDefault("BRANCH_NAME", ""));
         String prNumber = env.getOrDefault("CHANGE_ID", "");
         String email = env.getOrDefault("GIT_AUTHOR_EMAIL", env.getOrDefault("CHANGE_AUTHOR_EMAIL", ""));
 
-        // Fetch Api Key
         CredentialUtil credentialManager = new CredentialUtil();
         String authToken = credentialManager.getSecretToken("dx_token", listener);
         if (authToken == null) {
             listener.getLogger().println("Authentication token not found for key: dx_token");
-            LOGGER.log(Level.FINE, "Missing dx_token credential, skipping run data publishing");
             return;
         }
         String path = credentialManager.getSecretToken("dx_path", listener);
         if (path == null) {
             listener.getLogger().println("Authentication token not found for key: dx_path");
-            LOGGER.log(Level.FINE, "Missing dx_path credential, skipping run data publishing");
             return;
         }
 
-        // Print extracted data
         listener.getLogger().println("Sending run data to DX:");
         listener.getLogger().println("pipeline_name: " + jobName);
         listener.getLogger().println("pipeline_source: Jenkins");
@@ -116,14 +106,12 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
                 listener);
     }
 
-    private static String extractRepositoryName(String sourceUrl) {
-        if (sourceUrl == null || sourceUrl.isEmpty()) {
-            return "";
-        }
-        String repoName = sourceUrl.substring(sourceUrl.lastIndexOf('/') + 1);
-        if (repoName.endsWith(".git")) {
-            repoName = repoName.substring(0, repoName.length() - 4);
-        }
-        return repoName;
+    // Extracts 'owner/repo' from a GitHub URL
+    private static String extractRepositoryPath(String sourceUrl) {
+        if (sourceUrl == null || sourceUrl.isEmpty()) return "";
+        String repoPath = sourceUrl
+                .replaceFirst("^(https?|git)://github\\.com[/:]", "")
+                .replaceFirst("\\.git$", "");
+        return repoPath;
     }
 }
