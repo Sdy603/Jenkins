@@ -11,8 +11,9 @@ public class DxRunListenerTest {
     public void testResultMapping() {
         assertEquals("success", DxRunListener.mapResult(Result.SUCCESS));
         assertEquals("failure", DxRunListener.mapResult(Result.FAILURE));
-        assertEquals("aborted", DxRunListener.mapResult(Result.ABORTED));
-        assertEquals("failure", DxRunListener.mapResult(null));
+        assertEquals("cancelled", DxRunListener.mapResult(Result.ABORTED));
+        assertEquals("failure", DxRunListener.mapResult(Result.UNSTABLE));
+        assertEquals("unknown", DxRunListener.mapResult(null));
     }
 }
 
