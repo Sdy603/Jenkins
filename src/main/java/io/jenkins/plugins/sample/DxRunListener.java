@@ -52,12 +52,6 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             return;
         }
 
-        String token = CredentialUtil.getSecretToken(config.getCredentialsId(), run, listener);
-        if (token == null || token.isEmpty()) {
-            listener.getLogger().println("DX: API token not found. Skipping.");
-            return;
-        }
-
         long start = run.getStartTimeInMillis();
         long finish = start + run.getDuration();
         String status = mapResult(run.getResult());
@@ -82,7 +76,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         payload.put("source_url", sourceUrl);
 
         DxDataSender sender = new DxDataSender(config, listener);
-        sender.send("https://api.getdx.com/pipelineRuns.sync", payload.toString(), token);
+        sender.send(payload.toString());
     }
 
     static String mapResult(Result result) {
