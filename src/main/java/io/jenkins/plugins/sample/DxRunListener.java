@@ -77,18 +77,19 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
 
     static String mapResult(Result result) {
         if (result == null) {
-            return "running";
+            return "unknown";
         }
-        if (Result.FAILURE.equals(result)) {
-            return "failure";
-        }
-        if (Result.ABORTED.equals(result)) {
-            return "cancelled";
-        }
-        if (Result.SUCCESS.equals(result)) {
+        if (result.equals(Result.SUCCESS)) {
             return "success";
+        } else if (result.equals(Result.FAILURE)) {
+            return "failure";
+        } else if (result.equals(Result.ABORTED)) {
+            return "cancelled"; // DX API uses 'cancelled' with two Ls
+        } else if (result.equals(Result.UNSTABLE)) {
+            return "failure";
+        } else {
+            return "unknown";
         }
-        return "unknown";
     }
 
     private static String extractRepositoryName(String repoUrl) {
