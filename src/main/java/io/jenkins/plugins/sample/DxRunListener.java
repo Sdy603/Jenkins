@@ -71,22 +71,22 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         payload.put("pr_number", prNumber);
         payload.put("email", email);
 
-        DxDataSender sender = new DxDataSender(config, listener);
-        sender.send(payload.toString());
+        DxDataSender dxSender = new DxDataSender(config, listener);
+        dxSender.send(payload.toString());
     }
 
     static String mapResult(Result result) {
         if (result == null) {
-            return "unknown";
+            return "running";
+        }
+        if (Result.FAILURE.equals(result)) {
+            return "failure";
+        }
+        if (Result.ABORTED.equals(result)) {
+            return "cancelled";
         }
         if (Result.SUCCESS.equals(result)) {
             return "success";
-        }
-        if (Result.ABORTED.equals(result)) {
-            return "aborted";
-        }
-        if (Result.FAILURE.equals(result)) {
-            return "failed";
         }
         return "unknown";
     }
