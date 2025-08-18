@@ -24,16 +24,20 @@ public class DxDataSender {
     }
 
     public void send(String endpoint, String payload, String token) {
+        HttpURLConnection conn = null;
         try {
             URL url = new URL(endpoint);
-            HttpURLConnection conn;
+            HttpURLConnection localConn;
             if (config.hasProxy()) {
                 Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(config.getProxyHost(), config.getProxyPort()));
-                conn = (HttpURLConnection) url.openConnection(proxy);
+                localConn = (HttpURLConnection) url.openConnection(proxy);
             } else {
-                conn = (HttpURLConnection) url.openConnection();
+                localConn = (HttpURLConnection) url.openConnection();
             }
+            conn = localConn;
 
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
             conn.setRequestProperty("Authorization", "Bearer " + token);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
@@ -55,6 +59,10 @@ public class DxDataSender {
             listener.getLogger().println("DX: error sending data - " + e.getMessage());
             if (config.isDebugLogging()) {
                 LOGGER.log(Level.WARNING, "Error sending data to DX", e);
+            }
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
             }
         }
     }

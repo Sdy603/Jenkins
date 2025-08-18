@@ -12,6 +12,7 @@ public class DxRunListenerTest {
         assertEquals("success", DxRunListener.mapResult(Result.SUCCESS));
         assertEquals("failed", DxRunListener.mapResult(Result.FAILURE));
         assertEquals("aborted", DxRunListener.mapResult(Result.ABORTED));
+        assertEquals("failed", DxRunListener.mapResult(null));
     }
 }
 

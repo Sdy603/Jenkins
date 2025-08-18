@@ -52,7 +52,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             return;
         }
 
-        String token = CredentialUtil.getSecretToken(config.getCredentialsId(), listener);
+        String token = CredentialUtil.getSecretToken(config.getCredentialsId(), run, listener);
         if (token == null || token.isEmpty()) {
             listener.getLogger().println("DX: API token not found. Skipping.");
             return;
