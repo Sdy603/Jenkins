@@ -81,15 +81,18 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
 
     static String mapResult(Result result) {
         if (result == null) {
-            return "failed";
+            return "failure";
         }
-        if (result.equals(Result.SUCCESS)) {
+        if (Result.SUCCESS.equals(result)) {
             return "success";
         }
-        if (result.equals(Result.ABORTED)) {
+        if (Result.ABORTED.equals(result)) {
             return "aborted";
         }
-        return "failed";
+        if (Result.FAILURE.equals(result)) {
+            return "failure";
+        }
+        return "failure";
     }
 }
 

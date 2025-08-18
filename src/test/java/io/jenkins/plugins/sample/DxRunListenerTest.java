@@ -10,9 +10,9 @@ public class DxRunListenerTest {
     @Test
     public void testResultMapping() {
         assertEquals("success", DxRunListener.mapResult(Result.SUCCESS));
-        assertEquals("failed", DxRunListener.mapResult(Result.FAILURE));
+        assertEquals("failure", DxRunListener.mapResult(Result.FAILURE));
         assertEquals("aborted", DxRunListener.mapResult(Result.ABORTED));
-        assertEquals("failed", DxRunListener.mapResult(null));
+        assertEquals("failure", DxRunListener.mapResult(null));
     }
 }
 
