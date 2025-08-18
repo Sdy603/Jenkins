@@ -1,65 +1,38 @@
 package io.jenkins.plugins.sample;
 
-import java.io.BufferedReader;
+import hudson.model.TaskListener;
 import java.io.OutputStream;
-import java.io.InputStreamReader;
-import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import org.json.JSONObject;
-import hudson.model.TaskListener;
+import java.util.logging.Logger;
 
 public class DxDataSender {
-    public static void sendData(String apiUrl, String dataJson, String authToken, TaskListener listener) {
-        HttpURLConnection connection = null;
+
+    private static final Logger LOGGER = Logger.getLogger(DxDataSender.class.getName());
+
+    public static void sendData(String endpoint, String payload, String token, TaskListener listener) {
         try {
-            URL url = new URL(apiUrl);
-            connection = (HttpURLConnection) url.openConnection();
+            URL url = new URL(endpoint);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestProperty("Authorization", "Bearer " + token);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+            conn.setRequestMethod("POST");
 
-            // Set request method to POST
-            connection.setRequestMethod("POST");
-
-            // Set request headers
-            connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Authorization", "Bearer " + authToken);
-
-            // Enable input and output streams
-            connection.setDoOutput(true);
-
-            // Send the request
-            try (OutputStream os = connection.getOutputStream()) {
-                byte[] input = dataJson.getBytes(StandardCharsets.UTF_8);
-                os.write(input, 0, input.length);
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(payload.getBytes());
+                os.flush();
             }
 
-            // Check the response
-            int responseCode = connection.getResponseCode();
-            System.out.println("Response Code: " + responseCode);
-            listener.getLogger().println("Response Code: " + responseCode);
-
-            try (InputStream responseStream = responseCode >= 300 ? connection.getErrorStream() : connection.getInputStream();
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
-
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line).append(System.lineSeparator());
-                }
-
-                if (responseCode >= 300) {
-                    JSONObject jsonResponse = new JSONObject(response.toString());
-                    System.out.println("Error Message: " + jsonResponse.getString("error"));
-                    listener.getLogger().println("Error Message: " + jsonResponse.getString("error"));
-                }
+            int responseCode = conn.getResponseCode();
+            if (responseCode >= 200 && responseCode < 300) {
+                listener.getLogger().println("Successfully sent pipeline run data to DX.");
+            } else {
+                listener.getLogger().println("Failed to send data to DX. Response code: " + responseCode);
             }
-
         } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
+            listener.getLogger().println("Error sending data to DX: " + e.getMessage());
+            LOGGER.warning("Error sending data to DX: " + e.getMessage());
         }
     }
 }

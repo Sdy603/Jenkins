@@ -1,34 +1,27 @@
 package io.jenkins.plugins.sample;
 
-import com.cloudbees.plugins.credentials.CredentialsMatchers;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.domains.DomainRequirement;
-import hudson.security.ACL;
-import java.util.Collections;
-import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import hudson.model.TaskListener;
+import java.util.logging.Logger;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import hudson.util.Secret;
+import jenkins.model.Jenkins;
 
 public class CredentialUtil {
 
-    public static String getSecretToken(String credentialId, TaskListener listener) {
-        Jenkins jenkins = Jenkins.getInstanceOrNull();
-        if (jenkins == null) {
-            listener.getLogger().println("Jenkins instance is not available.");
-            return null;
-        }
+    private static final Logger LOGGER = Logger.getLogger(CredentialUtil.class.getName());
 
-        // Fetch the secret text credential
-        StringCredentials credentials = CredentialsMatchers.firstOrNull(
+    public String getSecretToken(String id, TaskListener listener) {
+        return Secret.toString(
+            com.cloudbees.plugins.credentials.CredentialsMatchers.firstOrNull(
                 CredentialsProvider.lookupCredentials(
-                        StringCredentials.class, jenkins, ACL.SYSTEM, Collections.<DomainRequirement>emptyList()),
-                CredentialsMatchers.withId(credentialId));
-
-        if (credentials != null) {
-            // Return the secret text
-            return credentials.getSecret().getPlainText();
-        } else {
-            return null;
-        }
+                    com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials.class,
+                    Jenkins.getInstance(),
+                    null,
+                    null
+                ),
+                com.cloudbees.plugins.credentials.CredentialsMatchers.withId(id)
+            ).getPassword()
+        );
     }
 }

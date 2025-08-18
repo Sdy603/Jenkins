@@ -21,11 +21,6 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
 
     private static final Logger LOGGER = Logger.getLogger(PipelineDataPublisher.class.getName());
 
-    public static String generateUUID() {
-        UUID uuid = UUID.randomUUID();
-        return uuid.toString();
-    }
-
     private String getGitRemoteUrl(Run<?, ?> run, TaskListener listener) {
         try {
             ProcessBuilder pb = new ProcessBuilder("git", "config", "--get", "remote.origin.url");
@@ -45,10 +40,7 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
     }
 
     private String extractRepositoryName(String sourceUrl) {
-        if (sourceUrl == null || sourceUrl.isEmpty()) {
-            return "";
-        }
-        // Extract just the repo name, removing user/org and .git
+        if (sourceUrl == null || sourceUrl.isEmpty()) return "";
         String[] parts = sourceUrl.split("[/:]");
         String repoWithGit = parts[parts.length - 1];
         return repoWithGit.replaceAll("\\.git$", "");
@@ -61,25 +53,22 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
         Jenkins jenkins = Jenkins.getInstanceOrNull();
         if (jenkins == null) {
             listener.getLogger().println("Jenkins instance is not available.");
-            LOGGER.log(Level.FINE, "Jenkins instance is not available, skipping run data publishing");
             return;
         }
 
-        // prepare data
+        // Extract build data
         String jobName = run.getParent().getFullName();
-        String referenceId = generateUUID();
-        Integer startTime = (int) (run.getStartTimeInMillis() / 1000);
-        Integer duration = (int) (run.getDuration() / 1000);
-        Integer finishTime = startTime + duration;
-        Result result = run.getResult();
-        String status = result != null ? result.toString().toLowerCase() : "unknown";
+        String referenceId = UUID.randomUUID().toString();
+        int startTime = (int) (run.getStartTimeInMillis() / 1000);
+        int duration = (int) (run.getDuration() / 1000);
+        int finishTime = startTime + duration;
+        String status = run.getResult() != null ? run.getResult().toString().toLowerCase() : "unknown";
 
         EnvVars env;
         try {
             env = run.getEnvironment(listener);
         } catch (IOException | InterruptedException e) {
             listener.getLogger().println("Failed to retrieve environment variables: " + e.getMessage());
-            LOGGER.log(Level.FINE, "Failed to retrieve environment variables", e);
             env = new EnvVars();
         }
 
@@ -90,35 +79,14 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
         String prNumber = env.getOrDefault("CHANGE_ID", "");
         String email = env.getOrDefault("GIT_AUTHOR_EMAIL", env.getOrDefault("CHANGE_AUTHOR_EMAIL", ""));
 
-        // Fetch Api Key
         CredentialUtil credentialManager = new CredentialUtil();
         String authToken = credentialManager.getSecretToken("dx_token", listener);
-        if (authToken == null) {
-            listener.getLogger().println("Authentication token not found for key: dx_token");
-            LOGGER.log(Level.FINE, "Missing dx_token credential, skipping run data publishing");
-            return;
-        }
         String path = credentialManager.getSecretToken("dx_path", listener);
-        if (path == null) {
-            listener.getLogger().println("Authentication token not found for key: dx_path");
-            LOGGER.log(Level.FINE, "Missing dx_path credential, skipping run data publishing");
+
+        if (authToken == null || path == null) {
+            listener.getLogger().println("Missing credentials dx_token or dx_path.");
             return;
         }
-
-        // Print extracted data
-        listener.getLogger().println("Sending run data to DX:");
-        listener.getLogger().println("pipeline_name: " + jobName);
-        listener.getLogger().println("pipeline_source: Jenkins");
-        listener.getLogger().println("reference_id: " + referenceId);
-        listener.getLogger().println("started_at: " + startTime);
-        listener.getLogger().println("finished_at: " + finishTime);
-        listener.getLogger().println("status: " + status);
-        listener.getLogger().println("source_url: " + sourceUrl);
-        listener.getLogger().println("repository: " + repository);
-        listener.getLogger().println("commit_sha: " + commitSha);
-        listener.getLogger().println("head_branch: " + headBranch);
-        listener.getLogger().println("pr_number: " + prNumber);
-        listener.getLogger().println("email: " + email);
 
         JSONObject payload = new JSONObject();
         payload.put("pipeline_name", jobName);
@@ -134,10 +102,7 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
         payload.put("pr_number", prNumber);
         payload.put("email", email);
 
-        DxDataSender.sendData(
-            path + "/api/pipelineRuns.sync",
-            payload.toString(),
-            authToken,
-            listener);
+        listener.getLogger().println("Sending pipeline metadata to DX...");
+        DxDataSender.sendData(path + "/api/pipelineRuns.sync", payload.toString(), authToken, listener);
     }
 }
