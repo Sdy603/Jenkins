@@ -1,7 +1,9 @@
 package io.jenkins.plugins.sample;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
+import hudson.security.ACL;
 import hudson.model.TaskListener;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -10,9 +12,11 @@ import java.net.Proxy;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
+import hudson.util.Secret;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
 /** Simple HTTP client for sending data to DX. */
@@ -41,11 +45,7 @@ public class DxDataSender {
         }
 
         String fullUrl = dxPath + "/api/pipelineRuns.sync";
-        StringCredentials dxToken = CredentialsProvider.findCredentialById(
-                credentialsId,
-                StringCredentials.class,
-                Jenkins.get(),
-                Collections.<DomainRequirement>emptyList());
+        Secret dxToken = resolveSecretText(credentialsId);
         if (dxToken == null) {
             listener.getLogger().println("DX: credentials not found for ID: " + credentialsId);
             return;
@@ -69,7 +69,7 @@ public class DxDataSender {
 
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(10000);
-            conn.setRequestProperty("Authorization", "Bearer " + dxToken.getSecret().getPlainText());
+            conn.setRequestProperty("Authorization", "Bearer " + dxToken.getPlainText());
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
             conn.setRequestMethod("POST");
@@ -96,6 +96,26 @@ public class DxDataSender {
                 conn.disconnect();
             }
         }
+    }
+
+    public static Secret resolveSecretText(String credentialsId) {
+        if (credentialsId == null || credentialsId.isBlank()) {
+            return null;
+        }
+        Jenkins jenkins = Jenkins.get();
+        if (jenkins == null) {
+            return null;
+        }
+        List<StringCredentials> creds = CredentialsProvider.lookupCredentials(
+                StringCredentials.class,
+                jenkins,
+                ACL.SYSTEM,
+                Collections.<DomainRequirement>emptyList());
+        StringCredentials match = CredentialsMatchers.firstOrNull(creds, CredentialsMatchers.withId(credentialsId));
+        if (match != null) {
+            return match.getSecret();
+        }
+        return null;
     }
 }
 
