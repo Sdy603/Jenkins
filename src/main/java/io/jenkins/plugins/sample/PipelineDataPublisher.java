@@ -6,7 +6,9 @@ import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,6 +26,34 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
         return uuid.toString();
     }
 
+    private String getGitRemoteUrl(Run<?, ?> run, TaskListener listener) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder("git", "config", "--get", "remote.origin.url");
+            pb.directory(run.getRootDir().getParentFile());
+            Process process = pb.start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String url = reader.readLine();
+            int exitCode = process.waitFor();
+            if (exitCode == 0 && url != null) {
+                return url;
+            }
+        } catch (Exception e) {
+            listener.getLogger().println("Failed to retrieve Git remote URL: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Error retrieving Git remote URL", e);
+        }
+        return "";
+    }
+
+    private String extractRepositoryName(String sourceUrl) {
+        if (sourceUrl == null || sourceUrl.isEmpty()) {
+            return "";
+        }
+        // Extract just the repo name, removing user/org and .git
+        String[] parts = sourceUrl.split("[/:]");
+        String repoWithGit = parts[parts.length - 1];
+        return repoWithGit.replaceAll("\\.git$", "");
+    }
+
     @Override
     public void onCompleted(Run<?, ?> run, @Nonnull TaskListener listener) {
         super.onCompleted(run, listener);
@@ -35,13 +65,14 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
             return;
         }
 
+        // prepare data
         String jobName = run.getParent().getFullName();
         String referenceId = generateUUID();
         Integer startTime = (int) (run.getStartTimeInMillis() / 1000);
         Integer duration = (int) (run.getDuration() / 1000);
         Integer finishTime = startTime + duration;
         Result result = run.getResult();
-        String status = (result != null) ? result.toString().toLowerCase() : "unknown";
+        String status = result != null ? result.toString().toLowerCase() : "unknown";
 
         EnvVars env;
         try {
@@ -52,25 +83,29 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
             env = new EnvVars();
         }
 
-        String sourceUrl = env.getOrDefault("GIT_URL", "");
-        String repository = extractRepositoryPath(sourceUrl);
+        String sourceUrl = getGitRemoteUrl(run, listener);
+        String repository = extractRepositoryName(sourceUrl);
         String commitSha = env.getOrDefault("GIT_COMMIT", "");
-        String headBranch = env.getOrDefault("GIT_BRANCH", env.getOrDefault("BRANCH_NAME", ""));
+        String headBranch = env.getOrDefault("GIT_BRANCH", "");
         String prNumber = env.getOrDefault("CHANGE_ID", "");
         String email = env.getOrDefault("GIT_AUTHOR_EMAIL", env.getOrDefault("CHANGE_AUTHOR_EMAIL", ""));
 
+        // Fetch Api Key
         CredentialUtil credentialManager = new CredentialUtil();
         String authToken = credentialManager.getSecretToken("dx_token", listener);
         if (authToken == null) {
             listener.getLogger().println("Authentication token not found for key: dx_token");
+            LOGGER.log(Level.FINE, "Missing dx_token credential, skipping run data publishing");
             return;
         }
         String path = credentialManager.getSecretToken("dx_path", listener);
         if (path == null) {
             listener.getLogger().println("Authentication token not found for key: dx_path");
+            LOGGER.log(Level.FINE, "Missing dx_path credential, skipping run data publishing");
             return;
         }
 
+        // Print extracted data
         listener.getLogger().println("Sending run data to DX:");
         listener.getLogger().println("pipeline_name: " + jobName);
         listener.getLogger().println("pipeline_source: Jenkins");
@@ -100,18 +135,9 @@ public class PipelineDataPublisher extends RunListener<Run<?, ?>> {
         payload.put("email", email);
 
         DxDataSender.sendData(
-                path + "/api/pipelineRuns.sync",
-                payload.toString(),
-                authToken,
-                listener);
-    }
-
-    // Extracts 'owner/repo' from a GitHub URL
-    private static String extractRepositoryPath(String sourceUrl) {
-        if (sourceUrl == null || sourceUrl.isEmpty()) return "";
-        String repoPath = sourceUrl
-                .replaceFirst("^(https?|git)://github\\.com[/:]", "")
-                .replaceFirst("\\.git$", "");
-        return repoPath;
+            path + "/api/pipelineRuns.sync",
+            payload.toString(),
+            authToken,
+            listener);
     }
 }
