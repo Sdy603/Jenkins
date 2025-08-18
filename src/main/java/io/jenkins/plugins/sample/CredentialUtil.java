@@ -1,23 +1,39 @@
+package io.jenkins.plugins.sample;
+
 import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
-import hudson.security.ACL;
-import jenkins.model.Jenkins;
-
+import hudson.model.TaskListener;
 import java.util.Collections;
+import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
+/** Utility class for retrieving credentials from Jenkins. */
 public class CredentialUtil {
 
-    public static StandardUsernamePasswordCredentials lookupCredentials() {
-        return CredentialsProvider
-            .lookupCredentials(
-                StandardUsernamePasswordCredentials.class,
-                (hudson.model.ItemGroup<?>) Jenkins.get(),  // Explicit cast
-                ACL.SYSTEM,
-                Collections.<DomainRequirement>emptyList()
-            )
-            .stream()
-            .findFirst()
-            .orElse(null);
+    private CredentialUtil() {}
+
+    /**
+     * Returns the secret text for the given credential ID.
+     */
+    public static String getSecretToken(String credentialId, TaskListener listener) {
+        if (credentialId == null || credentialId.isEmpty()) {
+            if (listener != null) {
+                listener.getLogger().println("DX: credentials ID is not configured.");
+            }
+            return null;
+        }
+        StringCredentials creds = CredentialsProvider.findCredentialById(
+                credentialId,
+                StringCredentials.class,
+                Jenkins.get(),
+                Collections.<DomainRequirement>emptyList());
+        if (creds != null) {
+            return creds.getSecret().getPlainText();
+        }
+        if (listener != null) {
+            listener.getLogger().println("DX: credentials not found for ID: " + credentialId);
+        }
+        return null;
     }
 }
+
