@@ -15,7 +15,8 @@ import org.kohsuke.stapler.DataBoundSetter;
 @Extension
 public class DxGlobalConfiguration extends GlobalConfiguration {
 
-    private String credentialsId;
+    private String dxTokenCredentialId;
+    private String dxPath;
     private String proxyHost;
     private int proxyPort;
     private boolean debugLogging;
@@ -34,7 +35,7 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
         return GlobalConfiguration.all().get(DxGlobalConfiguration.class);
     }
 
-    public ListBoxModel doFillCredentialsIdItems() {
+    public ListBoxModel doFillDxTokenCredentialIdItems() {
         return new StandardListBoxModel()
                 .includeEmptyValue()
                 .includeMatchingAs(
@@ -45,13 +46,23 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
                         c -> true);
     }
 
-    public String getCredentialsId() {
-        return credentialsId;
+    public String getDxTokenCredentialId() {
+        return dxTokenCredentialId;
     }
 
     @DataBoundSetter
-    public void setCredentialsId(String credentialsId) {
-        this.credentialsId = credentialsId;
+    public void setDxTokenCredentialId(String dxTokenCredentialId) {
+        this.dxTokenCredentialId = dxTokenCredentialId;
+        save();
+    }
+
+    public String getDxPath() {
+        return dxPath;
+    }
+
+    @DataBoundSetter
+    public void setDxPath(String dxPath) {
+        this.dxPath = dxPath;
         save();
     }
 
@@ -150,7 +161,10 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
     }
 
     public boolean isConfigured() {
-        return credentialsId != null && !credentialsId.isBlank();
+        return dxTokenCredentialId != null
+                && !dxTokenCredentialId.isBlank()
+                && dxPath != null
+                && !dxPath.isBlank();
     }
 
     public boolean shouldProcess(String repo, String job, String branch) {
