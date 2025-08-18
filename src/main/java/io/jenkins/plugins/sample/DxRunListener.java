@@ -9,7 +9,6 @@ import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import jenkins.model.Jenkins;
 import org.json.JSONObject;
 
 /** Listener that publishes pipeline run metadata to the DX API. */
@@ -56,11 +55,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         long finish = start + run.getDuration();
         String status = mapResult(run.getResult());
 
-        String sourceUrl = "";
-        Jenkins jenkins = Jenkins.get();
-        if (jenkins != null && jenkins.getRootUrl() != null) {
-            sourceUrl = jenkins.getRootUrl() + run.getUrl();
-        }
+        String repositoryName = extractRepositoryName(repoUrl);
 
         JSONObject payload = new JSONObject();
         payload.put("pipeline_name", jobName);
@@ -69,11 +64,12 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         payload.put("started_at", start);
         payload.put("finished_at", finish);
         payload.put("status", status);
-        payload.put("repository", repoUrl);
+        payload.put("repository", repositoryName);
+        payload.put("source_url", repoUrl);
+        payload.put("branch", branch);
         payload.put("commit_sha", commitSha);
         payload.put("pr_number", prNumber);
         payload.put("email", email);
-        payload.put("source_url", sourceUrl);
 
         DxDataSender sender = new DxDataSender(config, listener);
         sender.send(payload.toString());
@@ -81,7 +77,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
 
     static String mapResult(Result result) {
         if (result == null) {
-            return "failure";
+            return "unknown";
         }
         if (Result.SUCCESS.equals(result)) {
             return "success";
@@ -90,9 +86,21 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             return "aborted";
         }
         if (Result.FAILURE.equals(result)) {
-            return "failure";
+            return "failed";
         }
-        return "failure";
+        return "unknown";
+    }
+
+    private static String extractRepositoryName(String repoUrl) {
+        if (repoUrl == null || repoUrl.isEmpty()) {
+            return "";
+        }
+        String cleaned = repoUrl.replaceAll("\\.git$", "");
+        String[] parts = cleaned.split("[/:]");
+        if (parts.length >= 2) {
+            return parts[parts.length - 2] + "/" + parts[parts.length - 1];
+        }
+        return cleaned;
     }
 }
 

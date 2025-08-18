@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
-import hudson.util.Secret;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
 /** Simple HTTP client for sending data to DX. */
@@ -45,7 +44,7 @@ public class DxDataSender {
         }
 
         String fullUrl = dxPath + "/api/pipelineRuns.sync";
-        Secret dxToken = resolveSecretText(credentialsId);
+        String dxToken = resolveToken(credentialsId);
         if (dxToken == null) {
             listener.getLogger().println("DX: credentials not found for ID: " + credentialsId);
             return;
@@ -53,6 +52,7 @@ public class DxDataSender {
         if (config.isDebugLogging()) {
             listener.getLogger().println("DX: using credential ID: " + credentialsId);
             listener.getLogger().println("DX: sending to URL: " + fullUrl);
+            listener.getLogger().println("DX: payload: " + payload);
         }
 
         HttpURLConnection conn = null;
@@ -69,7 +69,7 @@ public class DxDataSender {
 
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(10000);
-            conn.setRequestProperty("Authorization", "Bearer " + dxToken.getPlainText());
+            conn.setRequestProperty("Authorization", "Bearer " + dxToken);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
             conn.setRequestMethod("POST");
@@ -98,7 +98,7 @@ public class DxDataSender {
         }
     }
 
-    public static Secret resolveSecretText(String credentialsId) {
+    public static String resolveToken(String credentialsId) {
         if (credentialsId == null || credentialsId.isBlank()) {
             return null;
         }
@@ -113,7 +113,7 @@ public class DxDataSender {
                 Collections.<DomainRequirement>emptyList());
         StringCredentials match = CredentialsMatchers.firstOrNull(creds, CredentialsMatchers.withId(credentialsId));
         if (match != null) {
-            return match.getSecret();
+            return match.getSecret().getPlainText();
         }
         return null;
     }
