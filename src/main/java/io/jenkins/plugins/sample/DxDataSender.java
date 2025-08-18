@@ -3,36 +3,60 @@ package io.jenkins.plugins.sample;
 import hudson.model.TaskListener;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/** Simple HTTP client for sending data to DX. */
 public class DxDataSender {
 
     private static final Logger LOGGER = Logger.getLogger(DxDataSender.class.getName());
 
-    public static void sendData(String endpoint, String payload, String token, TaskListener listener) {
+    private final DxGlobalConfiguration config;
+    private final TaskListener listener;
+
+    public DxDataSender(DxGlobalConfiguration config, TaskListener listener) {
+        this.config = config;
+        this.listener = listener;
+    }
+
+    public void send(String endpoint, String payload, String token) {
         try {
             URL url = new URL(endpoint);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            HttpURLConnection conn;
+            if (config.hasProxy()) {
+                Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(config.getProxyHost(), config.getProxyPort()));
+                conn = (HttpURLConnection) url.openConnection(proxy);
+            } else {
+                conn = (HttpURLConnection) url.openConnection();
+            }
+
             conn.setRequestProperty("Authorization", "Bearer " + token);
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
             conn.setRequestMethod("POST");
 
             try (OutputStream os = conn.getOutputStream()) {
-                os.write(payload.getBytes());
-                os.flush();
+                os.write(payload.getBytes(StandardCharsets.UTF_8));
             }
 
-            int responseCode = conn.getResponseCode();
-            if (responseCode >= 200 && responseCode < 300) {
-                listener.getLogger().println("Successfully sent pipeline run data to DX.");
+            int code = conn.getResponseCode();
+            if (code >= 200 && code < 300) {
+                if (config.isDebugLogging()) {
+                    listener.getLogger().println("DX: payload sent successfully. Response code: " + code);
+                }
             } else {
-                listener.getLogger().println("Failed to send data to DX. Response code: " + responseCode);
+                listener.getLogger().println("DX: failed to send payload. Response code: " + code);
             }
         } catch (Exception e) {
-            listener.getLogger().println("Error sending data to DX: " + e.getMessage());
-            LOGGER.warning("Error sending data to DX: " + e.getMessage());
+            listener.getLogger().println("DX: error sending data - " + e.getMessage());
+            if (config.isDebugLogging()) {
+                LOGGER.log(Level.WARNING, "Error sending data to DX", e);
+            }
         }
     }
 }
+
