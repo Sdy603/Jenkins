@@ -6,7 +6,6 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
@@ -33,7 +32,7 @@ public class DxDataSender {
 
         String fullUrl = dxBaseUrl + "/api/pipelineRuns.sync";
         StringCredentials credentials = CredentialsProvider.findCredentialById(
-                "dx-api-token", StringCredentials.class, Jenkins.get(), Collections.emptyList());
+                "dx-api-token", StringCredentials.class, Jenkins.get());
         if (credentials == null) {
             listener.getLogger().println("DX: credentials not found for ID: dx-api-token");
             return;
