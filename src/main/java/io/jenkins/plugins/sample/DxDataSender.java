@@ -1,7 +1,7 @@
 package io.jenkins.plugins.sample;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
-import hudson.model.ItemGroup;
+import hudson.model.Run;
 import hudson.model.TaskListener;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -9,7 +9,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.logging.Logger;
-import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
 /** Simple HTTP client for sending data to DX. */
@@ -19,9 +18,11 @@ public class DxDataSender {
 
     private final DxGlobalConfiguration config;
     private final TaskListener listener;
+    private final Run<?, ?> run;
 
-    public DxDataSender(DxGlobalConfiguration config, TaskListener listener) {
+    public DxDataSender(DxGlobalConfiguration config, Run<?, ?> run, TaskListener listener) {
         this.config = config;
+        this.run = run;
         this.listener = listener;
     }
 
@@ -36,7 +37,7 @@ public class DxDataSender {
         StringCredentials credentials = CredentialsProvider.findCredentialById(
                 "dx-api-token",
                 StringCredentials.class,
-                (ItemGroup) Jenkins.get(),
+                run,
                 Collections.emptyList());
         if (credentials == null) {
             listener.getLogger().println("DX: credentials not found for ID: dx-api-token");
