@@ -41,12 +41,14 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         String commitSha = buildData != null && buildData.getLastBuiltRevision() != null
                 ? buildData.getLastBuiltRevision().getSha1String()
                 : env.get("GIT_COMMIT", "");
-        String branch = env.getOrDefault("BRANCH_NAME", env.getOrDefault("GIT_BRANCH", ""));
-        String prNumber = env.getOrDefault("CHANGE_ID", "");
+        String headBranch = env.getOrDefault("BRANCH_NAME", env.getOrDefault("GIT_BRANCH", ""));
+        if (headBranch != null && headBranch.startsWith("origin/")) {
+            headBranch = headBranch.substring("origin/".length());
+        }
         String email = env.getOrDefault("GIT_AUTHOR_EMAIL", env.getOrDefault("CHANGE_AUTHOR_EMAIL", ""));
 
         String jobName = run.getParent().getFullName();
-        if (!config.shouldProcess(repoUrl, jobName, branch)) {
+        if (!config.shouldProcess(repoUrl, jobName, headBranch)) {
             listener.getLogger().println("DX: build filtered out.");
             return;
         }
@@ -54,22 +56,33 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         long start = run.getStartTimeInMillis();
         long finish = start + run.getDuration();
         String status = mapResult(result);
+        if (status == null || status.isEmpty()) {
+            status = "unknown";
+        }
 
         String repositoryName = extractRepositoryName(repoUrl);
 
+        String pipelineName = jobName;
+        if (pipelineName == null || pipelineName.isEmpty()) {
+            pipelineName = "jenkins-" + jobName;
+        }
+        String referenceId = pipelineName + " #" + run.getNumber();
+
         JSONObject payload = new JSONObject();
-        payload.put("pipeline_name", jobName);
+        payload.put("pipeline_name", pipelineName);
         payload.put("pipeline_source", "jenkins");
-        payload.put("reference_id", String.valueOf(run.getNumber()));
+        payload.put("reference_id", referenceId);
         payload.put("started_at", start);
         payload.put("finished_at", finish);
         payload.put("status", status);
         payload.put("repository", repositoryName);
-        payload.put("source_url", repoUrl);
-        payload.put("branch", branch);
-        payload.put("commit_sha", commitSha);
-        payload.put("pr_number", prNumber);
-        payload.put("email", email);
+        payload.put("head_branch", headBranch);
+        if (commitSha != null && !commitSha.isEmpty()) {
+            payload.put("commit_sha", commitSha);
+        }
+        if (email != null && !email.isEmpty()) {
+            payload.put("email", email);
+        }
 
         DxDataSender dxSender = new DxDataSender(config, listener);
         dxSender.send(payload.toString(), run);
@@ -96,12 +109,9 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         if (repoUrl == null || repoUrl.isEmpty()) {
             return "";
         }
-        String cleaned = repoUrl.replaceAll("\\.git$", "");
-        String[] parts = cleaned.split("[/:]");
-        if (parts.length >= 2) {
-            return parts[parts.length - 2] + "/" + parts[parts.length - 1];
-        }
-        return cleaned;
+        repoUrl = repoUrl.replaceAll("\\.git$", "");
+        int lastSlash = repoUrl.lastIndexOf('/');
+        return lastSlash >= 0 ? repoUrl.substring(lastSlash + 1) : repoUrl;
     }
 }
 
