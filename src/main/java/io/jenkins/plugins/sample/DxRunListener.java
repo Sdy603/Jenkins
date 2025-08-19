@@ -8,9 +8,8 @@ import hudson.model.User;
 import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
 import hudson.scm.ChangeLogSet;
-import hudson.tasks.Mailer;
-import hudson.model.AbstractBuild;
 import hudson.tasks.MailAddressResolver;
+import hudson.model.AbstractBuild;
 import javax.annotation.Nonnull;
 import jenkins.scm.api.SCMHead;
 import jenkins.scm.api.SCMRevisionAction;
@@ -99,13 +98,25 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
                         String email = MailAddressResolver.resolve(author);
                         if (email != null && !email.isEmpty()) {
                             userEmail = email;
-                            listener.getLogger().println("DX DEBUG: Resolved email from changelog: " + userEmail);
                             break;
                         }
                     }
                 }
                 if (!userEmail.isEmpty()) {
                     break;
+                }
+            }
+        }
+
+        if (userEmail.isEmpty()) {
+            User buildUser = run.getCause(hudson.model.Cause.UserIdCause.class) != null
+                    ? User.get(run.getCause(hudson.model.Cause.UserIdCause.class).getUserId(), false, null)
+                    : null;
+            if (buildUser != null) {
+                String fallbackEmail = MailAddressResolver.resolve(buildUser);
+                if (fallbackEmail != null && !fallbackEmail.isEmpty()) {
+                    userEmail = fallbackEmail;
+                    listener.getLogger().println("DX: fallback email found from build user.");
                 }
             }
         }
