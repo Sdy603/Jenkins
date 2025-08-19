@@ -33,19 +33,23 @@ public class DxDataSender {
 
         String fullUrl = dxBaseUrl + "/api/pipelineRuns.sync";
 
-        Run<?, ?> run = build instanceof Run ? (Run<?, ?>) build : null;
+        Run<?, ?> run = (build instanceof Run) ? (Run<?, ?>) build : null;
+        if (run == null) {
+            listener.getLogger().println("DX: build context is required for credentials. Skipping.");
+            return;
+        }
+
         StringCredentials credentials = CredentialsProvider.findCredentialById(
                 "dx-api-token",
                 StringCredentials.class,
                 run,
                 Collections.emptyList());
-
-        if (credentials == null || credentials.getSecret() == null) {
-            listener.getLogger().println("DX: credentials not found or secret missing for ID: dx-api-token");
+        if (credentials == null) {
+            listener.getLogger().println("DX: credentials not found for ID: dx-api-token");
             return;
         }
-
         String dxToken = credentials.getSecret().getPlainText();
+
         listener.getLogger().println("DX Payload: " + payload);
 
         HttpURLConnection conn = null;
