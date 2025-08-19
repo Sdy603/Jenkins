@@ -1,8 +1,9 @@
 package io.jenkins.plugins.sample;
 
+import static org.junit.Assert.*;
+
 import hudson.model.Result;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
 /** Basic tests for DxRunListener. */
 public class DxRunListenerTest {
@@ -16,4 +17,3 @@ public class DxRunListenerTest {
         assertEquals("unknown", DxRunListener.mapResult(null));
     }
 }
-

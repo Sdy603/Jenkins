@@ -2,6 +2,7 @@ package io.jenkins.plugins.sample;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
+import hudson.model.AbstractBuild;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -10,14 +11,12 @@ import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
 import hudson.scm.ChangeLogSet;
 import hudson.tasks.MailAddressResolver;
-import hudson.model.AbstractBuild;
 import javax.annotation.Nonnull;
 import jenkins.scm.api.SCMHead;
 import jenkins.scm.api.SCMRevisionAction;
 import jenkins.scm.api.metadata.ContributorMetadataAction;
 import jenkins.scm.api.mixin.ChangeRequestSCMHead;
 import org.json.JSONObject;
-import java.util.Collections;
 
 /** Listener that publishes pipeline run metadata to the DX API. */
 @Extension
@@ -50,7 +49,12 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             if (buildData.getLastBuiltRevision() != null) {
                 commitSha = buildData.getLastBuiltRevision().getSha1String();
                 if (!buildData.getLastBuiltRevision().getBranches().isEmpty()) {
-                    branchName = buildData.getLastBuiltRevision().getBranches().iterator().next().getName();
+                    branchName = buildData
+                            .getLastBuiltRevision()
+                            .getBranches()
+                            .iterator()
+                            .next()
+                            .getName();
                 }
             }
         }

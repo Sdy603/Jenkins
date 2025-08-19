@@ -42,10 +42,7 @@ public class DxDataSender {
         Run<?, ?> run = (Run<?, ?>) build;
 
         StringCredentials credentials = CredentialsProvider.findCredentialById(
-                "dx-api-token",
-                StringCredentials.class,
-                run,
-                Collections.emptyList());
+                "dx-api-token", StringCredentials.class, run, Collections.emptyList());
 
         if (credentials == null) {
             listener.getLogger().println("DX: credentials not found for ID: dx-api-token");

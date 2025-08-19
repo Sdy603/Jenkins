@@ -2,19 +2,22 @@ package io.jenkins.plugins.sample;
 
 import hudson.Extension;
 import hudson.util.FormValidation;
+import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import jenkins.model.GlobalConfiguration;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
-
-import java.util.regex.Pattern;
 
 @Extension
 public class DxGlobalConfiguration extends GlobalConfiguration {
 
-    private String apiKey;
-    private String apiUrl;
-    private String includeRegex;
+    private String dxBaseUrl;
+    private String includeRepoPattern;
+    private String includeJobPattern;
+    private String includeBranchPattern;
 
     public DxGlobalConfiguration() {
         load();
@@ -24,81 +27,116 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
         return GlobalConfiguration.all().get(DxGlobalConfiguration.class);
     }
 
-    public String getApiKey() {
-        return apiKey;
-    }
-
-    @DataBoundSetter
-    public void setApiKey(String apiKey) {
-        this.apiKey = apiKey;
-        save();
-    }
-
-    public String getApiUrl() {
-        return apiUrl;
-    }
-
-    @DataBoundSetter
-    public void setApiUrl(String apiUrl) {
-        this.apiUrl = apiUrl;
-        save();
-    }
-
-    // Needed by DxDataSender
+    @Nullable
     public String getDxBaseUrl() {
-        return getApiUrl();
-    }
-
-    public String getIncludeRegex() {
-        return includeRegex;
+        return dxBaseUrl;
     }
 
     @DataBoundSetter
-    public void setIncludeRegex(String includeRegex) {
-        this.includeRegex = includeRegex;
+    public void setDxBaseUrl(@Nullable String dxBaseUrl) {
+        this.dxBaseUrl = dxBaseUrl;
+        save();
+    }
+
+    @Nullable
+    public String getIncludeRepoPattern() {
+        return includeRepoPattern;
+    }
+
+    @DataBoundSetter
+    public void setIncludeRepoPattern(@Nullable String includeRepoPattern) {
+        this.includeRepoPattern = includeRepoPattern;
+        save();
+    }
+
+    @Nullable
+    public String getIncludeJobPattern() {
+        return includeJobPattern;
+    }
+
+    @DataBoundSetter
+    public void setIncludeJobPattern(@Nullable String includeJobPattern) {
+        this.includeJobPattern = includeJobPattern;
+        save();
+    }
+
+    @Nullable
+    public String getIncludeBranchPattern() {
+        return includeBranchPattern;
+    }
+
+    @DataBoundSetter
+    public void setIncludeBranchPattern(@Nullable String includeBranchPattern) {
+        this.includeBranchPattern = includeBranchPattern;
         save();
     }
 
     public boolean isConfigured() {
-        return apiKey != null && !apiKey.isEmpty() &&
-               apiUrl != null && !apiUrl.isEmpty();
+        return dxBaseUrl != null && !dxBaseUrl.trim().isEmpty();
     }
 
-    public boolean shouldProcess(String repoUrl, String jobName, String branch) {
+    public boolean shouldProcess(@Nullable String repo, @Nullable String jobName, @Nullable String branch) {
         if (!isConfigured()) {
             return false;
         }
-        if (includeRegex == null || includeRegex.isEmpty()) {
+        return matches(includeRepoPattern, repo)
+            && matches(includeJobPattern, jobName)
+            && matches(includeBranchPattern, branch);
+    }
+
+    private boolean matches(@Nullable String pattern, @Nullable String value) {
+        if (pattern == null || pattern.isEmpty()) {
             return true;
         }
-
-        String target = (repoUrl != null ? repoUrl : "") + "|" +
-                        (jobName != null ? jobName : "") + "|" +
-                        (branch != null ? branch : "");
-
+        if (value == null) {
+            return false;
+        }
         try {
-            return Pattern.compile(includeRegex).matcher(target).find();
+            final Pattern compiled = Pattern.compile(pattern);
+            return compiled.matcher(value).find();
         } catch (Exception e) {
-            return true; // Fail open if regex is invalid
+            return true; // fail open if regex is invalid
         }
     }
 
     @Override
-    public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
+    public boolean configure(@Nonnull StaplerRequest req, @Nonnull JSONObject json) throws FormException {
         req.bindJSON(this, json);
         save();
         return true;
     }
 
-    public FormValidation doCheckApiKey() {
-        return (apiKey == null || apiKey.isEmpty())
-                ? FormValidation.warning("API key is empty.")
-                : FormValidation.ok();
+    public FormValidation doCheckDxBaseUrl(@QueryParameter String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return FormValidation.warning("DX API base URL is empty.");
+        }
+        if (!value.startsWith("https://")) {
+            return FormValidation.warning("DX base URL should start with https://");
+        }
+        return FormValidation.ok();
     }
 
-    public FormValidation doCheckApiUrl() {
-        return (apiUrl == null || apiUrl.isEmpty())
-                ? FormValidation.warning("API URL is empty.")
-                : FormValidation.ok();
+    public FormValidation doCheckIncludeRepoPattern(@QueryParameter String value) {
+        return validateRegex(value, "Repository pattern");
+    }
+
+    public FormValidation doCheckIncludeJobPattern(@QueryParameter String value) {
+        return validateRegex(value, "Job name pattern");
+    }
+
+    public FormValidation doCheckIncludeBranchPattern(@QueryParameter String value) {
+        return validateRegex(value, "Branch pattern");
+    }
+
+    private FormValidation validateRegex(@Nullable String value, String fieldName) {
+        if (value == null || value.isEmpty()) {
+            return FormValidation.ok();
+        }
+        try {
+            Pattern.compile(value);
+            return FormValidation.ok();
+        } catch (Exception e) {
+            return FormValidation.error(fieldName + " has an invalid regex pattern.");
+        }
     }
 }
