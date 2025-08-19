@@ -21,6 +21,11 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
         return GlobalConfiguration.all().get(DxGlobalConfiguration.class);
     }
 
+    @Override
+    public String getDisplayName() {
+        return "DX Data Sharing Configuration";
+    }
+
     public String getDxBaseUrl() {
         return dxBaseUrl;
     }
@@ -79,4 +84,3 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
         return pattern != null && !pattern.isEmpty() && value != null && value.matches(pattern);
     }
 }
-
