@@ -99,6 +99,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
                         String email = MailAddressResolver.resolve(author);
                         if (email != null && !email.isEmpty()) {
                             userEmail = email;
+                            listener.getLogger().println("DX DEBUG: Resolved email from changelog: " + userEmail);
                             break;
                         }
                     }
