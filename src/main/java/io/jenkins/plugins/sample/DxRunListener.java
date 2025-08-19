@@ -111,14 +111,18 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         }
 
         if (userEmail.isEmpty()) {
-            User buildUser = run.getCause(hudson.model.Cause.UserIdCause.class) != null
-                    ? User.get(run.getCause(hudson.model.Cause.UserIdCause.class).getUserId(), false, null)
-                    : null;
-            if (buildUser != null) {
-                String fallbackEmail = MailAddressResolver.resolve(buildUser);
-                if (fallbackEmail != null && !fallbackEmail.isEmpty()) {
-                    userEmail = fallbackEmail;
-                    listener.getLogger().println("DX: fallback email found from build user.");
+            hudson.model.Cause.UserIdCause userIdCause = run.getCause(hudson.model.Cause.UserIdCause.class);
+            if (userIdCause != null) {
+                String userId = userIdCause.getUserId();
+                if (userId != null) {
+                    User buildUser = User.get(userId, false, null);
+                    if (buildUser != null) {
+                        String fallbackEmail = MailAddressResolver.resolve(buildUser);
+                        if (fallbackEmail != null && !fallbackEmail.isEmpty()) {
+                            userEmail = fallbackEmail;
+                            listener.getLogger().println("DX: fallback email found from build user.");
+                        }
+                    }
                 }
             }
         }
