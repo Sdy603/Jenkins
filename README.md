@@ -48,16 +48,18 @@ To generate a *.hpi file:
 
 - For "Kind", select “Secret Text”
 - Choose your desired scope
-- For “Secret”, ass your API Key
-- For “ID”, use the string "dx_token"
-- For "Description", use “An API Key for the DX API”
+- For “Secret”, add your API Key
+- For “ID”, use the string "dx-api-token"
+- For "Description", use “API Key for the DX API”
 - Click “OK”
 
-### Adding Your DX URL to Jenkins
-- Follow the same steps you used to add your API Key, but use the following values:
--- ID: "dx_path"
--- Secret: your company’s DX URL
--- Description: Company-specific DX URL
+### Configuring the Plugin
+- Navigate to **Manage Jenkins → System**.
+- In the **DX Data Sharing** section, configure the following:
+  - **DX API Base URL** – Base URL for your DX instance, e.g. `https://dx.example.com`.
+  - **Include Repository (regex)** – Optional allowlist for repositories in `owner/repo` form. Example: `^my-org/.+$`.
+  - **Pipeline Name (regex)** – Optional allowlist for Jenkins pipeline names. Example: `^build-and-test$`.
+  - **Include Branch (regex)** – Optional allowlist for branch names. Example: `^main$`.
 
 ## Issues
 
