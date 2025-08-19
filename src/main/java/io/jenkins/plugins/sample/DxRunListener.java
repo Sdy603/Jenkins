@@ -7,6 +7,8 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.json.JSONObject;
 
@@ -42,6 +44,9 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
                 ? buildData.getLastBuiltRevision().getSha1String()
                 : env.get("GIT_COMMIT", "");
         String branch = env.getOrDefault("BRANCH_NAME", env.getOrDefault("GIT_BRANCH", ""));
+        if (branch != null && branch.startsWith("origin/")) {
+            branch = branch.substring("origin/".length());
+        }
         String prNumber = env.getOrDefault("CHANGE_ID", "");
         String email = env.getOrDefault("GIT_AUTHOR_EMAIL", env.getOrDefault("CHANGE_AUTHOR_EMAIL", ""));
 
@@ -54,22 +59,45 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         long start = run.getStartTimeInMillis();
         long finish = start + run.getDuration();
         String status = mapResult(result);
+        if (status == null || status.isEmpty()) {
+            status = "unknown";
+        }
 
         String repositoryName = extractRepositoryName(repoUrl);
 
+        String pipelineName = jobName;
+        if (pipelineName == null || pipelineName.isEmpty()) {
+            pipelineName = "jenkins-" + jobName;
+        }
+        String referenceId = String.valueOf(run.getNumber());
+        if (referenceId == null || referenceId.isEmpty()) {
+            referenceId = String.valueOf(run.getNumber());
+        }
+
         JSONObject payload = new JSONObject();
-        payload.put("pipeline_name", jobName);
+        payload.put("pipeline_name", pipelineName);
         payload.put("pipeline_source", "jenkins");
-        payload.put("reference_id", String.valueOf(run.getNumber()));
+        payload.put("reference_id", referenceId);
         payload.put("started_at", start);
         payload.put("finished_at", finish);
         payload.put("status", status);
         payload.put("repository", repositoryName);
         payload.put("source_url", repoUrl);
-        payload.put("branch", branch);
-        payload.put("commit_sha", commitSha);
-        payload.put("pr_number", prNumber);
-        payload.put("email", email);
+        if (branch != null && !branch.isEmpty()) {
+            payload.put("branch", branch);
+        }
+        if (commitSha != null && !commitSha.isEmpty()) {
+            payload.put("commit_sha", commitSha);
+        }
+        if (prNumber != null && !prNumber.isEmpty()) {
+            payload.put("pr_number", prNumber);
+        }
+        if (email != null && !email.isEmpty()) {
+            payload.put("email", email);
+        }
+
+        System.out.println("DX Payload:");
+        System.out.println(payload.toString(2));
 
         DxDataSender dxSender = new DxDataSender(config, listener);
         dxSender.send(payload.toString(), run);
@@ -96,12 +124,10 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         if (repoUrl == null || repoUrl.isEmpty()) {
             return "";
         }
-        String cleaned = repoUrl.replaceAll("\\.git$", "");
-        String[] parts = cleaned.split("[/:]");
-        if (parts.length >= 2) {
-            return parts[parts.length - 2] + "/" + parts[parts.length - 1];
-        }
-        return cleaned;
+        repoUrl = repoUrl.replaceAll("\\.git$", "");
+        Pattern pattern = Pattern.compile("[:/]([^/]+/[^/]+)$");
+        Matcher matcher = pattern.matcher(repoUrl);
+        return matcher.find() ? matcher.group(1) : "";
     }
 }
 
