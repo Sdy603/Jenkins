@@ -1,19 +1,15 @@
 package io.jenkins.plugins.sample;
 
-import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
-import java.io.File;
 import javax.annotation.Nonnull;
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.revwalk.RevCommit;
-import org.eclipse.jgit.revwalk.RevWalk;
-import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import hudson.scm.ChangeLogSet;
+import jenkins.scm.api.metadata.ChangeRequestAction;
+import jenkins.scm.api.metadata.ContributorMetadataAction;
 import org.json.JSONObject;
 
 /** Listener that publishes pipeline run metadata to the DX API. */
@@ -33,36 +29,24 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             return;
         }
 
-        EnvVars env;
-        try {
-            env = run.getEnvironment(listener);
-        } catch (Exception e) {
-            env = new EnvVars();
-        }
-
         BuildData buildData = run.getAction(BuildData.class);
-        String repoUrl = buildData != null && !buildData.getRemoteUrls().isEmpty()
-                ? buildData.getRemoteUrls().iterator().next()
-                : env.get("GIT_URL", "");
-        String commitSha = buildData != null && buildData.getLastBuiltRevision() != null
-                ? buildData.getLastBuiltRevision().getSha1String()
-                : env.get("GIT_COMMIT", "");
-
+        String repoUrl = "";
+        String commitSha = "";
         String branchName = "";
-        if (buildData != null && buildData.getLastBuiltRevision() != null
-                && !buildData.getLastBuiltRevision().getBranches().isEmpty()) {
-            branchName =
-                    buildData.getLastBuiltRevision().getBranches().iterator().next().getName();
+
+        if (buildData != null) {
+            if (!buildData.getRemoteUrls().isEmpty()) {
+                repoUrl = buildData.getRemoteUrls().iterator().next();
+            }
+            if (buildData.getLastBuiltRevision() != null) {
+                commitSha = buildData.getLastBuiltRevision().getSha1String();
+                if (!buildData.getLastBuiltRevision().getBranches().isEmpty()) {
+                    branchName =
+                            buildData.getLastBuiltRevision().getBranches().iterator().next().getName();
+                }
+            }
         }
-        if (branchName == null || branchName.isEmpty()) {
-            branchName =
-                    env.getOrDefault(
-                            "GITHUB_HEAD_REF",
-                            env.getOrDefault(
-                                    "CHANGE_BRANCH",
-                                    env.getOrDefault(
-                                            "GIT_BRANCH", env.getOrDefault("BRANCH_NAME", ""))));
-        }
+
         if (branchName != null && !branchName.isEmpty()) {
             branchName =
                     branchName
@@ -71,28 +55,26 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
                             .replaceFirst("^origin/", "");
         }
 
-        String prNumber = env.getOrDefault("CHANGE_ID", "");
+        ChangeRequestAction changeRequest = run.getAction(ChangeRequestAction.class);
+        String prNumber = changeRequest != null ? changeRequest.getId() : "";
 
         String userEmail = "";
-        if (commitSha != null && !commitSha.isEmpty()) {
-            String gitDir = env.get("GIT_DIR");
-            if (gitDir == null || gitDir.isEmpty()) {
-                String workTree = env.getOrDefault("GIT_WORK_TREE", env.get("WORKSPACE"));
-                if (workTree != null && !workTree.isEmpty()) {
-                    gitDir = workTree + "/.git";
+        ContributorMetadataAction contributor = run.getAction(ContributorMetadataAction.class);
+        if (contributor != null && contributor.getContributorEmail() != null) {
+            userEmail = contributor.getContributorEmail();
+        }
+        if (userEmail.isEmpty()) {
+            for (ChangeLogSet<? extends ChangeLogSet.Entry> cs : run.getChangeSets()) {
+                for (ChangeLogSet.Entry entry : cs) {
+                    String email =
+                            entry.getAuthor() != null ? entry.getAuthor().getEmailAddress() : null;
+                    if (email != null && !email.isEmpty()) {
+                        userEmail = email;
+                        break;
+                    }
                 }
-            }
-            if (gitDir != null && !gitDir.isEmpty()) {
-                try (Repository repo =
-                                new FileRepositoryBuilder()
-                                        .setGitDir(new File(gitDir))
-                                        .readEnvironment()
-                                        .build();
-                        RevWalk walk = new RevWalk(repo)) {
-                    RevCommit commit = walk.parseCommit(ObjectId.fromString(commitSha));
-                    userEmail = commit.getAuthorIdent().getEmailAddress();
-                } catch (Exception e) {
-                    // ignore
+                if (!userEmail.isEmpty()) {
+                    break;
                 }
             }
         }
