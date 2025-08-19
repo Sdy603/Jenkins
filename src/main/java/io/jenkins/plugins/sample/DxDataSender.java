@@ -18,15 +18,13 @@ public class DxDataSender {
 
     private final DxGlobalConfiguration config;
     private final TaskListener listener;
-    private final Run<?, ?> run;
 
-    public DxDataSender(DxGlobalConfiguration config, Run<?, ?> run, TaskListener listener) {
+    public DxDataSender(DxGlobalConfiguration config, TaskListener listener) {
         this.config = config;
-        this.run = run;
         this.listener = listener;
     }
 
-    public void send(String payload) {
+    public void send(String payload, Object build) {
         String dxBaseUrl = config.getDxBaseUrl();
         if (dxBaseUrl == null || dxBaseUrl.isBlank()) {
             listener.getLogger().println("DX: API base path not configured. Skipping.");
@@ -34,6 +32,8 @@ public class DxDataSender {
         }
 
         String fullUrl = dxBaseUrl + "/api/pipelineRuns.sync";
+
+        Run<?, ?> run = build instanceof Run ? (Run<?, ?>) build : null;
         StringCredentials credentials = CredentialsProvider.findCredentialById(
                 "dx-api-token",
                 StringCredentials.class,
