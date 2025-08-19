@@ -4,10 +4,14 @@ import hudson.Extension;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.model.User;
 import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
-import javax.annotation.Nonnull;
 import hudson.scm.ChangeLogSet;
+import hudson.tasks.Mailer;
+import hudson.model.AbstractBuild;
+import hudson.tasks.MailAddressResolver;
+import javax.annotation.Nonnull;
 import jenkins.scm.api.SCMHead;
 import jenkins.scm.api.SCMRevisionAction;
 import jenkins.scm.api.metadata.ContributorMetadataAction;
@@ -84,14 +88,19 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         if (contributor != null && contributor.getContributorEmail() != null) {
             userEmail = contributor.getContributorEmail();
         }
-        if (userEmail.isEmpty()) {
-            for (ChangeLogSet<? extends ChangeLogSet.Entry> cs : run.getChangeSets()) {
+
+        if (userEmail.isEmpty() && run instanceof AbstractBuild) {
+            @SuppressWarnings("unchecked")
+            AbstractBuild<?, ?> build = (AbstractBuild<?, ?>) run;
+            for (ChangeLogSet<? extends ChangeLogSet.Entry> cs : build.getChangeSets()) {
                 for (ChangeLogSet.Entry entry : cs) {
-                    String email =
-                            entry.getAuthor() != null ? entry.getAuthor().getEmailAddress() : null;
-                    if (email != null && !email.isEmpty()) {
-                        userEmail = email;
-                        break;
+                    User author = entry.getAuthor();
+                    if (author != null) {
+                        String email = MailAddressResolver.resolve(author);
+                        if (email != null && !email.isEmpty()) {
+                            userEmail = email;
+                            break;
+                        }
                     }
                 }
                 if (!userEmail.isEmpty()) {
@@ -175,4 +184,3 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         return parts[parts.length - 1];
     }
 }
-
