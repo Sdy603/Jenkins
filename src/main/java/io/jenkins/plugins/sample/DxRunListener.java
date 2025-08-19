@@ -10,26 +10,21 @@ import hudson.plugins.git.util.BuildData;
 import hudson.scm.ChangeLogSet;
 import hudson.tasks.MailAddressResolver;
 import hudson.model.AbstractBuild;
+import javax.annotation.Nonnull;
 import jenkins.scm.api.SCMHead;
 import jenkins.scm.api.SCMRevisionAction;
 import jenkins.scm.api.metadata.ContributorMetadataAction;
 import jenkins.scm.api.mixin.ChangeRequestSCMHead;
 import org.json.JSONObject;
 
-import java.util.Objects;
-
 /** Listener that publishes pipeline run metadata to the DX API. */
 @Extension
 public class DxRunListener extends RunListener<Run<?, ?>> {
 
     @Override
-    public void onCompleted(Run<?, ?> run, TaskListener listener) {
-        if (run == null || listener == null) {
-            return;
-        }
-
+    public void onCompleted(Run<?, ?> run, @Nonnull TaskListener listener) {
         Result result = run.getResult();
-        if (!Result.SUCCESS.equals(result)) {
+        if (result == null || !result.equals(Result.SUCCESS)) {
             return;
         }
 
@@ -46,14 +41,14 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         String targetBranch = "";
 
         if (buildData != null) {
-            if (buildData.getRemoteUrls() != null && !buildData.getRemoteUrls().isEmpty()) {
+            if (!buildData.getRemoteUrls().isEmpty()) {
                 repoUrl = buildData.getRemoteUrls().iterator().next();
             }
             if (buildData.getLastBuiltRevision() != null) {
-                commitSha = Objects.toString(buildData.getLastBuiltRevision().getSha1String(), "");
-                if (buildData.getLastBuiltRevision().getBranches() != null &&
-                        !buildData.getLastBuiltRevision().getBranches().isEmpty()) {
-                    branchName = buildData.getLastBuiltRevision().getBranches().iterator().next().getName();
+                commitSha = buildData.getLastBuiltRevision().getSha1String();
+                if (!buildData.getLastBuiltRevision().getBranches().isEmpty()) {
+                    branchName =
+                            buildData.getLastBuiltRevision().getBranches().iterator().next().getName();
                 }
             }
         }
@@ -73,16 +68,18 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         }
 
         if (branchName != null && !branchName.isEmpty()) {
-            branchName = branchName
-                    .replaceFirst("^refs/heads/", "")
-                    .replaceFirst("^refs/remotes/origin/", "")
-                    .replaceFirst("^origin/", "");
+            branchName =
+                    branchName
+                            .replaceFirst("^refs/heads/", "")
+                            .replaceFirst("^refs/remotes/origin/", "")
+                            .replaceFirst("^origin/", "");
         }
         if (targetBranch != null && !targetBranch.isEmpty()) {
-            targetBranch = targetBranch
-                    .replaceFirst("^refs/heads/", "")
-                    .replaceFirst("^refs/remotes/origin/", "")
-                    .replaceFirst("^origin/", "");
+            targetBranch =
+                    targetBranch
+                            .replaceFirst("^refs/heads/", "")
+                            .replaceFirst("^refs/remotes/origin/", "")
+                            .replaceFirst("^origin/", "");
         }
 
         String userEmail = "";
@@ -112,20 +109,19 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         }
 
         if (userEmail.isEmpty()) {
-            hudson.model.Cause.UserIdCause userCause = run.getCause(hudson.model.Cause.UserIdCause.class);
-            if (userCause != null && userCause.getUserId() != null) {
-                User buildUser = User.getById(userCause.getUserId(), false);
-                if (buildUser != null) {
-                    String fallbackEmail = MailAddressResolver.resolve(buildUser);
-                    if (fallbackEmail != null && !fallbackEmail.isEmpty()) {
-                        userEmail = fallbackEmail;
-                        listener.getLogger().println("DX: fallback email found from build user.");
-                    }
+            User buildUser = run.getCause(hudson.model.Cause.UserIdCause.class) != null
+                    ? User.get(run.getCause(hudson.model.Cause.UserIdCause.class).getUserId(), false, null)
+                    : null;
+            if (buildUser != null) {
+                String fallbackEmail = MailAddressResolver.resolve(buildUser);
+                if (fallbackEmail != null && !fallbackEmail.isEmpty()) {
+                    userEmail = fallbackEmail;
+                    listener.getLogger().println("DX: fallback email found from build user.");
                 }
             }
         }
 
-        String jobName = run.getParent() != null ? run.getParent().getFullName() : "";
+        String jobName = run.getParent().getFullName();
         if (!config.shouldProcess(repoUrl, jobName, branchName)) {
             listener.getLogger().println("DX: build filtered out.");
             return;
@@ -139,7 +135,11 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         }
 
         String repositoryName = extractRepositoryName(repoUrl);
-        String pipelineName = (jobName != null && !jobName.isEmpty()) ? jobName : "jenkins-job";
+
+        String pipelineName = jobName;
+        if (pipelineName == null || pipelineName.isEmpty()) {
+            pipelineName = "jenkins-" + jobName;
+        }
         String referenceId = jobName + " #" + run.getNumber();
         String sourceId = jobName;
 
