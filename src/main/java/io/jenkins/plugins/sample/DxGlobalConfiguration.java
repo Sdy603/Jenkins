@@ -1,21 +1,13 @@
 package io.jenkins.plugins.sample;
 
-import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
-import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.Extension;
-import hudson.security.ACL;
-import hudson.util.ListBoxModel;
-import java.util.Collections;
 import jenkins.model.GlobalConfiguration;
-import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.kohsuke.stapler.DataBoundSetter;
 
 /** Global configuration for the DX data sharing plugin. */
 @Extension
 public class DxGlobalConfiguration extends GlobalConfiguration {
 
-    private String dxTokenCredentialId;
     private String dxPath;
     private String proxyHost;
     private int proxyPort;
@@ -33,27 +25,6 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
 
     public static DxGlobalConfiguration get() {
         return GlobalConfiguration.all().get(DxGlobalConfiguration.class);
-    }
-
-    public ListBoxModel doFillDxTokenCredentialIdItems() {
-        return new StandardListBoxModel()
-                .includeEmptyValue()
-                .includeMatchingAs(
-                        ACL.SYSTEM,
-                        Jenkins.get(),
-                        StringCredentials.class,
-                        Collections.<DomainRequirement>emptyList(),
-                        c -> true);
-    }
-
-    public String getDxTokenCredentialId() {
-        return dxTokenCredentialId;
-    }
-
-    @DataBoundSetter
-    public void setDxTokenCredentialId(String dxTokenCredentialId) {
-        this.dxTokenCredentialId = dxTokenCredentialId;
-        save();
     }
 
     public String getDxPath() {
@@ -161,10 +132,7 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
     }
 
     public boolean isConfigured() {
-        return dxTokenCredentialId != null
-                && !dxTokenCredentialId.isBlank()
-                && dxPath != null
-                && !dxPath.isBlank();
+        return dxPath != null && !dxPath.isBlank();
     }
 
     public boolean shouldProcess(String repo, String job, String branch) {
