@@ -1,5 +1,6 @@
 package io.jenkins.plugins.sample;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.model.Result;
 import hudson.model.Run;
@@ -19,6 +20,7 @@ import org.json.JSONObject;
 
 /** Listener that publishes pipeline run metadata to the DX API. */
 @Extension
+@SuppressFBWarnings("NP_NULL_ON_SOME_PATH")
 public class DxRunListener extends RunListener<Run<?, ?>> {
 
     @Override

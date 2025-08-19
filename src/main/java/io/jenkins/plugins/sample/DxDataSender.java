@@ -1,4 +1,3 @@
-// DxDataSender.java
 package io.jenkins.plugins.sample;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
@@ -9,6 +8,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
@@ -34,21 +34,24 @@ public class DxDataSender {
 
         String fullUrl = dxBaseUrl + "/api/pipelineRuns.sync";
 
-        Run<?, ?> run = (build instanceof Run) ? (Run<?, ?>) build : null;
-        if (run == null) {
+        if (!(build instanceof Run)) {
             listener.getLogger().println("DX: build context is required for credentials. Skipping.");
             return;
         }
+
+        Run<?, ?> run = (Run<?, ?>) build;
 
         StringCredentials credentials = CredentialsProvider.findCredentialById(
                 "dx-api-token",
                 StringCredentials.class,
                 run,
                 Collections.emptyList());
+
         if (credentials == null) {
             listener.getLogger().println("DX: credentials not found for ID: dx-api-token");
             return;
         }
+
         String dxToken = credentials.getSecret().getPlainText();
 
         listener.getLogger().println("DX Payload: " + payload);
@@ -67,6 +70,7 @@ public class DxDataSender {
 
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(payload.getBytes(StandardCharsets.UTF_8));
+                os.flush();
             }
 
             int code = conn.getResponseCode();
@@ -76,8 +80,9 @@ public class DxDataSender {
                 listener.getLogger().println("DX: failed to send payload. Response code: " + code);
             }
         } catch (Exception e) {
-            listener.getLogger().println("DX: error sending data - " + e.getMessage());
-            LOGGER.warning("Error sending data to DX: " + e.getMessage());
+            String msg = "DX: error sending data - " + e.getMessage();
+            listener.getLogger().println(msg);
+            LOGGER.log(Level.WARNING, msg, e);
         } finally {
             if (conn != null) {
                 conn.disconnect();
