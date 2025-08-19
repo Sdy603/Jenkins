@@ -114,7 +114,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         if (userEmail.isEmpty()) {
             hudson.model.Cause.UserIdCause userCause = run.getCause(hudson.model.Cause.UserIdCause.class);
             if (userCause != null && userCause.getUserId() != null) {
-                User buildUser = User.get(userCause.getUserId(), false, null);
+                User buildUser = User.getById(userCause.getUserId(), false);
                 if (buildUser != null) {
                     String fallbackEmail = MailAddressResolver.resolve(buildUser);
                     if (fallbackEmail != null && !fallbackEmail.isEmpty()) {
