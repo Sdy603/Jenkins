@@ -17,6 +17,7 @@ import jenkins.scm.api.SCMRevisionAction;
 import jenkins.scm.api.metadata.ContributorMetadataAction;
 import jenkins.scm.api.mixin.ChangeRequestSCMHead;
 import org.json.JSONObject;
+import java.util.Collections;
 
 /** Listener that publishes pipeline run metadata to the DX API. */
 @Extension
@@ -112,7 +113,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             if (userIdCause != null) {
                 String userId = userIdCause.getUserId();
                 if (userId != null) {
-                    User buildUser = User.get(userId, false, Collections.emptyMap());
+                    User buildUser = User.getById(userId, false);
                     if (buildUser != null) {
                         String fallbackEmail = MailAddressResolver.resolve(buildUser);
                         if (fallbackEmail != null && !fallbackEmail.isEmpty()) {
