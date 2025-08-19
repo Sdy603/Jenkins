@@ -15,6 +15,7 @@ import jenkins.scm.api.SCMRevisionAction;
 import jenkins.scm.api.metadata.ContributorMetadataAction;
 import jenkins.scm.api.mixin.ChangeRequestSCMHead;
 import org.json.JSONObject;
+
 import java.util.Objects;
 
 /** Listener that publishes pipeline run metadata to the DX API. */
@@ -138,7 +139,6 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         }
 
         String repositoryName = extractRepositoryName(repoUrl);
-
         String pipelineName = (jobName != null && !jobName.isEmpty()) ? jobName : "jenkins-job";
         String referenceId = jobName + " #" + run.getNumber();
         String sourceId = jobName;
@@ -192,7 +192,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             return "";
         }
         String cleaned = repoUrl.replaceAll("\\.git$", "");
-        String[] parts = cleaned.split("[/:"]);
+        String[] parts = cleaned.split("[/:]");
         return parts[parts.length - 1];
     }
 }
