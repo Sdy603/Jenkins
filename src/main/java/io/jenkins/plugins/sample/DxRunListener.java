@@ -3,7 +3,6 @@ package io.jenkins.plugins.sample;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.Cause;
-import hudson.model.Executor;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -71,15 +70,6 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         for (Cause cause : run.getCauses()) {
             if (cause instanceof Cause.UserIdCause) {
                 Cause.UserIdCause userCause = (Cause.UserIdCause) cause;
-                try {
-                    String causeEmail = userCause.getUserEmail();
-                    if (causeEmail != null && !causeEmail.isEmpty()) {
-                        userEmail = causeEmail;
-                        break;
-                    }
-                } catch (NoSuchMethodError ignored) {
-                    // getUserEmail not available
-                }
                 String userId = userCause.getUserId();
                 if (userId != null) {
                     User u = User.getById(userId, false);
@@ -91,22 +81,6 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
                         }
                     }
                 }
-            }
-        }
-        if (userEmail.isEmpty()) {
-            try {
-                Executor exec = run.getExecutor();
-                if (exec != null && exec.getOwner() != null && exec.getOwner().getUser() != null) {
-                    User u = exec.getOwner().getUser();
-                    if (u != null) {
-                        Mailer.UserProperty prop = u.getProperty(Mailer.UserProperty.class);
-                        if (prop != null && prop.getAddress() != null) {
-                            userEmail = prop.getAddress();
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
-                // ignore
             }
         }
 
