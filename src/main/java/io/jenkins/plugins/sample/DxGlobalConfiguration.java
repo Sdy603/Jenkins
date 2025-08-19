@@ -80,8 +80,8 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
             return false;
         }
         return matches(includeRepoPattern, repo)
-            && matches(includeJobPattern, jobName)
-            && matches(includeBranchPattern, branch);
+                && matches(includeJobPattern, jobName)
+                && matches(includeBranchPattern, branch);
     }
 
     private boolean matches(@Nullable String pattern, @Nullable String value) {
