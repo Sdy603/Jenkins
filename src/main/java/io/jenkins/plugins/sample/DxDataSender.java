@@ -1,8 +1,6 @@
 package io.jenkins.plugins.sample;
 
-import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.security.ACL;
 import hudson.model.TaskListener;
 import java.io.OutputStream;
@@ -11,8 +9,6 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
@@ -32,11 +28,6 @@ public class DxDataSender {
     }
 
     public void send(String payload) {
-        String credentialsId = config.getDxTokenCredentialId();
-        if (credentialsId == null || credentialsId.isBlank()) {
-            listener.getLogger().println("DX: API token credential not configured. Skipping.");
-            return;
-        }
         String dxPath = config.getDxPath();
         if (dxPath == null || dxPath.isBlank()) {
             listener.getLogger().println("DX: API base path not configured. Skipping.");
@@ -44,16 +35,24 @@ public class DxDataSender {
         }
 
         String fullUrl = dxPath + "/api/pipelineRuns.sync";
-        String dxToken = resolveToken(credentialsId);
-        if (dxToken == null) {
-            listener.getLogger().println("DX: credentials not found for ID: " + credentialsId);
-            return;
-        }
+        String credentialId = "dx-api-token";
+        StringCredentials credentials = CredentialsProvider.findCredentialById(
+                credentialId, StringCredentials.class, Jenkins.get(), ACL.SYSTEM);
         if (config.isDebugLogging()) {
-            listener.getLogger().println("DX: using credential ID: " + credentialsId);
+            if (credentials != null) {
+                LOGGER.info("DX token credential resolved successfully.");
+            } else {
+                LOGGER.warning("DX token credential NOT found.");
+            }
+            listener.getLogger().println("DX: using credential ID: " + credentialId);
             listener.getLogger().println("DX: sending to URL: " + fullUrl);
             listener.getLogger().println("DX: payload: " + payload);
         }
+        if (credentials == null) {
+            listener.getLogger().println("DX: credentials not found for ID: " + credentialId);
+            return;
+        }
+        String dxToken = credentials.getSecret().getPlainText();
 
         HttpURLConnection conn = null;
         try {
@@ -96,26 +95,6 @@ public class DxDataSender {
                 conn.disconnect();
             }
         }
-    }
-
-    public static String resolveToken(String credentialsId) {
-        if (credentialsId == null || credentialsId.isBlank()) {
-            return null;
-        }
-        Jenkins jenkins = Jenkins.get();
-        if (jenkins == null) {
-            return null;
-        }
-        List<StringCredentials> creds = CredentialsProvider.lookupCredentials(
-                StringCredentials.class,
-                jenkins,
-                ACL.SYSTEM,
-                Collections.<DomainRequirement>emptyList());
-        StringCredentials match = CredentialsMatchers.firstOrNull(creds, CredentialsMatchers.withId(credentialsId));
-        if (match != null) {
-            return match.getSecret().getPlainText();
-        }
-        return null;
     }
 }
 
