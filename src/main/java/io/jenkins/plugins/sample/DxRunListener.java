@@ -71,7 +71,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         payload.put("pr_number", prNumber);
         payload.put("email", email);
 
-        DxDataSender dxSender = new DxDataSender(config, listener);
+        DxDataSender dxSender = new DxDataSender(config, run, listener);
         dxSender.send(payload.toString());
     }
 
