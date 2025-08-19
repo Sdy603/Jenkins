@@ -44,6 +44,11 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
         save();
     }
 
+    // Needed by DxDataSender
+    public String getDxBaseUrl() {
+        return getApiUrl();
+    }
+
     public String getIncludeRegex() {
         return includeRegex;
     }
