@@ -8,16 +8,10 @@ import org.kohsuke.stapler.DataBoundSetter;
 @Extension
 public class DxGlobalConfiguration extends GlobalConfiguration {
 
-    private String dxPath;
-    private String proxyHost;
-    private int proxyPort;
-    private boolean debugLogging;
+    private String dxBaseUrl;
     private String includeRepoPattern;
-    private String excludeRepoPattern;
     private String includeJobPattern;
-    private String excludeJobPattern;
     private String includeBranchPattern;
-    private String excludeBranchPattern;
 
     public DxGlobalConfiguration() {
         load();
@@ -27,43 +21,13 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
         return GlobalConfiguration.all().get(DxGlobalConfiguration.class);
     }
 
-    public String getDxPath() {
-        return dxPath;
+    public String getDxBaseUrl() {
+        return dxBaseUrl;
     }
 
     @DataBoundSetter
-    public void setDxPath(String dxPath) {
-        this.dxPath = dxPath;
-        save();
-    }
-
-    public String getProxyHost() {
-        return proxyHost;
-    }
-
-    @DataBoundSetter
-    public void setProxyHost(String proxyHost) {
-        this.proxyHost = proxyHost;
-        save();
-    }
-
-    public int getProxyPort() {
-        return proxyPort;
-    }
-
-    @DataBoundSetter
-    public void setProxyPort(int proxyPort) {
-        this.proxyPort = proxyPort;
-        save();
-    }
-
-    public boolean isDebugLogging() {
-        return debugLogging;
-    }
-
-    @DataBoundSetter
-    public void setDebugLogging(boolean debugLogging) {
-        this.debugLogging = debugLogging;
+    public void setDxBaseUrl(String dxBaseUrl) {
+        this.dxBaseUrl = dxBaseUrl;
         save();
     }
 
@@ -77,16 +41,6 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
         save();
     }
 
-    public String getExcludeRepoPattern() {
-        return excludeRepoPattern;
-    }
-
-    @DataBoundSetter
-    public void setExcludeRepoPattern(String excludeRepoPattern) {
-        this.excludeRepoPattern = excludeRepoPattern;
-        save();
-    }
-
     public String getIncludeJobPattern() {
         return includeJobPattern;
     }
@@ -94,16 +48,6 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
     @DataBoundSetter
     public void setIncludeJobPattern(String includeJobPattern) {
         this.includeJobPattern = includeJobPattern;
-        save();
-    }
-
-    public String getExcludeJobPattern() {
-        return excludeJobPattern;
-    }
-
-    @DataBoundSetter
-    public void setExcludeJobPattern(String excludeJobPattern) {
-        this.excludeJobPattern = excludeJobPattern;
         save();
     }
 
@@ -117,36 +61,14 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
         save();
     }
 
-    public String getExcludeBranchPattern() {
-        return excludeBranchPattern;
-    }
-
-    @DataBoundSetter
-    public void setExcludeBranchPattern(String excludeBranchPattern) {
-        this.excludeBranchPattern = excludeBranchPattern;
-        save();
-    }
-
-    public boolean hasProxy() {
-        return proxyHost != null && !proxyHost.isEmpty() && proxyPort > 0;
-    }
-
     public boolean isConfigured() {
-        return dxPath != null && !dxPath.isBlank();
+        return dxBaseUrl != null && !dxBaseUrl.isBlank();
     }
 
     public boolean shouldProcess(String repo, String job, String branch) {
-        if (matches(excludeRepoPattern, repo)
-                || matches(excludeJobPattern, job)
-                || matches(excludeBranchPattern, branch)) {
-            return false;
-        }
-        if (!matchesOrBlank(includeRepoPattern, repo)
-                || !matchesOrBlank(includeJobPattern, job)
-                || !matchesOrBlank(includeBranchPattern, branch)) {
-            return false;
-        }
-        return true;
+        return matchesOrBlank(includeRepoPattern, repo)
+                && matchesOrBlank(includeJobPattern, job)
+                && matchesOrBlank(includeBranchPattern, branch);
     }
 
     private boolean matchesOrBlank(String pattern, String value) {
