@@ -8,8 +8,10 @@ import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
 import javax.annotation.Nonnull;
 import hudson.scm.ChangeLogSet;
-import jenkins.scm.api.metadata.ChangeRequestAction;
+import jenkins.scm.api.SCMHead;
+import jenkins.scm.api.SCMRevisionAction;
 import jenkins.scm.api.metadata.ContributorMetadataAction;
+import jenkins.scm.api.mixin.ChangeRequestSCMHead;
 import org.json.JSONObject;
 
 /** Listener that publishes pipeline run metadata to the DX API. */
@@ -33,6 +35,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         String repoUrl = "";
         String commitSha = "";
         String branchName = "";
+        String targetBranch = "";
 
         if (buildData != null) {
             if (!buildData.getRemoteUrls().isEmpty()) {
@@ -47,6 +50,20 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             }
         }
 
+        SCMRevisionAction scmRevisionAction = run.getAction(SCMRevisionAction.class);
+        String prNumber = "";
+        if (scmRevisionAction != null && scmRevisionAction.getRevision() != null) {
+            SCMHead head = scmRevisionAction.getRevision().getHead();
+            if (head instanceof ChangeRequestSCMHead) {
+                ChangeRequestSCMHead changeRequestHead = (ChangeRequestSCMHead) head;
+                branchName = changeRequestHead.getName();
+                targetBranch = changeRequestHead.getTarget().getName();
+                prNumber = changeRequestHead.getId();
+            } else if (branchName == null || branchName.isEmpty()) {
+                branchName = head.getName();
+            }
+        }
+
         if (branchName != null && !branchName.isEmpty()) {
             branchName =
                     branchName
@@ -54,9 +71,13 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
                             .replaceFirst("^refs/remotes/origin/", "")
                             .replaceFirst("^origin/", "");
         }
-
-        ChangeRequestAction changeRequest = run.getAction(ChangeRequestAction.class);
-        String prNumber = changeRequest != null ? changeRequest.getId() : "";
+        if (targetBranch != null && !targetBranch.isEmpty()) {
+            targetBranch =
+                    targetBranch
+                            .replaceFirst("^refs/heads/", "")
+                            .replaceFirst("^refs/remotes/origin/", "")
+                            .replaceFirst("^origin/", "");
+        }
 
         String userEmail = "";
         ContributorMetadataAction contributor = run.getAction(ContributorMetadataAction.class);
@@ -112,6 +133,9 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         payload.put("repository", repositoryName);
         payload.put("source_url", repoUrl);
         payload.put("head_branch", branchName);
+        if (targetBranch != null && !targetBranch.isEmpty()) {
+            payload.put("base_branch", targetBranch);
+        }
         payload.put("commit_sha", commitSha != null ? commitSha : "");
         if (prNumber != null && !prNumber.isEmpty()) {
             payload.put("pr_number", prNumber);
