@@ -49,8 +49,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             if (buildData.getLastBuiltRevision() != null) {
                 commitSha = buildData.getLastBuiltRevision().getSha1String();
                 if (!buildData.getLastBuiltRevision().getBranches().isEmpty()) {
-                    branchName =
-                            buildData.getLastBuiltRevision().getBranches().iterator().next().getName();
+                    branchName = buildData.getLastBuiltRevision().getBranches().iterator().next().getName();
                 }
             }
         }
@@ -70,18 +69,16 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         }
 
         if (branchName != null && !branchName.isEmpty()) {
-            branchName =
-                    branchName
-                            .replaceFirst("^refs/heads/", "")
-                            .replaceFirst("^refs/remotes/origin/", "")
-                            .replaceFirst("^origin/", "");
+            branchName = branchName
+                    .replaceFirst("^refs/heads/", "")
+                    .replaceFirst("^refs/remotes/origin/", "")
+                    .replaceFirst("^origin/", "");
         }
         if (targetBranch != null && !targetBranch.isEmpty()) {
-            targetBranch =
-                    targetBranch
-                            .replaceFirst("^refs/heads/", "")
-                            .replaceFirst("^refs/remotes/origin/", "")
-                            .replaceFirst("^origin/", "");
+            targetBranch = targetBranch
+                    .replaceFirst("^refs/heads/", "")
+                    .replaceFirst("^refs/remotes/origin/", "")
+                    .replaceFirst("^origin/", "");
         }
 
         String userEmail = "";
@@ -115,7 +112,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             if (userIdCause != null) {
                 String userId = userIdCause.getUserId();
                 if (userId != null) {
-                    User buildUser = User.get(userId, false, null);
+                    User buildUser = User.get(userId, false, Collections.emptyMap());
                     if (buildUser != null) {
                         String fallbackEmail = MailAddressResolver.resolve(buildUser);
                         if (fallbackEmail != null && !fallbackEmail.isEmpty()) {
@@ -185,7 +182,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         } else if (result.equals(Result.FAILURE)) {
             return "failure";
         } else if (result.equals(Result.ABORTED)) {
-            return "cancelled"; // DX API uses 'cancelled' with two Ls
+            return "cancelled";
         } else if (result.equals(Result.UNSTABLE)) {
             return "failure";
         } else {
