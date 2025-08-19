@@ -45,6 +45,8 @@ public class DxDataSender {
         }
         String dxToken = credentials.getSecret().getPlainText();
 
+        listener.getLogger().println("DX Payload: " + payload.toString());
+
         HttpURLConnection conn = null;
         try {
             URL url = new URL(fullUrl);
