@@ -7,8 +7,6 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.json.JSONObject;
 
@@ -56,8 +54,8 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             return;
         }
 
-        long start = run.getStartTimeInMillis();
-        long finish = start + run.getDuration();
+        long start = run.getStartTimeInMillis() / 1000;
+        long finish = (run.getStartTimeInMillis() + run.getDuration()) / 1000;
         String status = mapResult(result);
         if (status == null || status.isEmpty()) {
             status = "unknown";
@@ -69,10 +67,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         if (pipelineName == null || pipelineName.isEmpty()) {
             pipelineName = "jenkins-" + jobName;
         }
-        String referenceId = String.valueOf(run.getNumber());
-        if (referenceId == null || referenceId.isEmpty()) {
-            referenceId = String.valueOf(run.getNumber());
-        }
+        String referenceId = pipelineName + " #" + run.getNumber();
 
         JSONObject payload = new JSONObject();
         payload.put("pipeline_name", pipelineName);
@@ -83,18 +78,12 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         payload.put("status", status);
         payload.put("repository", repositoryName);
         payload.put("source_url", repoUrl);
-        if (branch != null && !branch.isEmpty()) {
-            payload.put("branch", branch);
-        }
-        if (commitSha != null && !commitSha.isEmpty()) {
-            payload.put("commit_sha", commitSha);
-        }
+        payload.put("head_branch", branch != null ? branch : "");
+        payload.put("commit_sha", commitSha != null ? commitSha : "");
         if (prNumber != null && !prNumber.isEmpty()) {
             payload.put("pr_number", prNumber);
         }
-        if (email != null && !email.isEmpty()) {
-            payload.put("email", email);
-        }
+        payload.put("email", email != null ? email : "");
 
         System.out.println("DX Payload:");
         System.out.println(payload.toString(2));
@@ -125,9 +114,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             return "";
         }
         repoUrl = repoUrl.replaceAll("\\.git$", "");
-        Pattern pattern = Pattern.compile("[:/]([^/]+/[^/]+)$");
-        Matcher matcher = pattern.matcher(repoUrl);
-        return matcher.find() ? matcher.group(1) : "";
+        return repoUrl.substring(repoUrl.lastIndexOf('/') + 1);
     }
 }
 
