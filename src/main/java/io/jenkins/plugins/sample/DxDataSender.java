@@ -39,13 +39,14 @@ public class DxDataSender {
                 StringCredentials.class,
                 run,
                 Collections.emptyList());
-        if (credentials == null) {
-            listener.getLogger().println("DX: credentials not found for ID: dx-api-token");
+
+        if (credentials == null || credentials.getSecret() == null) {
+            listener.getLogger().println("DX: credentials not found or secret missing for ID: dx-api-token");
             return;
         }
-        String dxToken = credentials.getSecret().getPlainText();
 
-        listener.getLogger().println("DX Payload: " + payload.toString());
+        String dxToken = credentials.getSecret().getPlainText();
+        listener.getLogger().println("DX Payload: " + payload);
 
         HttpURLConnection conn = null;
         try {
@@ -79,4 +80,3 @@ public class DxDataSender {
         }
     }
 }
-
