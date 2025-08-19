@@ -7,7 +7,6 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import org.json.JSONObject;
 
@@ -15,10 +14,13 @@ import org.json.JSONObject;
 @Extension
 public class DxRunListener extends RunListener<Run<?, ?>> {
 
-    private static final Logger LOGGER = Logger.getLogger(DxRunListener.class.getName());
-
     @Override
     public void onCompleted(Run<?, ?> run, @Nonnull TaskListener listener) {
+        Result result = run.getResult();
+        if (result == null || !result.equals(Result.SUCCESS)) {
+            return;
+        }
+
         DxGlobalConfiguration config = DxGlobalConfiguration.get();
         if (config == null || !config.isConfigured()) {
             listener.getLogger().println("DX: plugin not configured. Skipping.");
@@ -45,15 +47,13 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
 
         String jobName = run.getParent().getFullName();
         if (!config.shouldProcess(repoUrl, jobName, branch)) {
-            if (config.isDebugLogging()) {
-                listener.getLogger().println("DX: build filtered out.");
-            }
+            listener.getLogger().println("DX: build filtered out.");
             return;
         }
 
         long start = run.getStartTimeInMillis();
         long finish = start + run.getDuration();
-        String status = mapResult(run.getResult());
+        String status = mapResult(result);
 
         String repositoryName = extractRepositoryName(repoUrl);
 
