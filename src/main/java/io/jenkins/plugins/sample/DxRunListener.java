@@ -2,15 +2,18 @@ package io.jenkins.plugins.sample;
 
 import hudson.EnvVars;
 import hudson.Extension;
-import hudson.model.Cause;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import hudson.model.User;
 import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
-import hudson.tasks.Mailer;
+import java.io.File;
 import javax.annotation.Nonnull;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.json.JSONObject;
 
 /** Listener that publishes pipeline run metadata to the DX API. */
@@ -60,26 +63,36 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
                                     env.getOrDefault(
                                             "GIT_BRANCH", env.getOrDefault("BRANCH_NAME", ""))));
         }
-        if (branchName != null && branchName.startsWith("origin/")) {
-            branchName = branchName.substring("origin/".length());
+        if (branchName != null && !branchName.isEmpty()) {
+            branchName =
+                    branchName
+                            .replaceFirst("^refs/heads/", "")
+                            .replaceFirst("^refs/remotes/origin/", "")
+                            .replaceFirst("^origin/", "");
         }
 
         String prNumber = env.getOrDefault("CHANGE_ID", "");
 
         String userEmail = "";
-        for (Cause cause : run.getCauses()) {
-            if (cause instanceof Cause.UserIdCause) {
-                Cause.UserIdCause userCause = (Cause.UserIdCause) cause;
-                String userId = userCause.getUserId();
-                if (userId != null) {
-                    User u = User.getById(userId, false);
-                    if (u != null) {
-                        Mailer.UserProperty prop = u.getProperty(Mailer.UserProperty.class);
-                        if (prop != null && prop.getAddress() != null) {
-                            userEmail = prop.getAddress();
-                            break;
-                        }
-                    }
+        if (commitSha != null && !commitSha.isEmpty()) {
+            String gitDir = env.get("GIT_DIR");
+            if (gitDir == null || gitDir.isEmpty()) {
+                String workTree = env.getOrDefault("GIT_WORK_TREE", env.get("WORKSPACE"));
+                if (workTree != null && !workTree.isEmpty()) {
+                    gitDir = workTree + "/.git";
+                }
+            }
+            if (gitDir != null && !gitDir.isEmpty()) {
+                try (Repository repo =
+                                new FileRepositoryBuilder()
+                                        .setGitDir(new File(gitDir))
+                                        .readEnvironment()
+                                        .build();
+                        RevWalk walk = new RevWalk(repo)) {
+                    RevCommit commit = walk.parseCommit(ObjectId.fromString(commitSha));
+                    userEmail = commit.getAuthorIdent().getEmailAddress();
+                } catch (Exception e) {
+                    // ignore
                 }
             }
         }
