@@ -2,11 +2,15 @@ package io.jenkins.plugins.sample;
 
 import hudson.EnvVars;
 import hudson.Extension;
+import hudson.model.Cause;
+import hudson.model.Executor;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.model.User;
 import hudson.model.listeners.RunListener;
 import hudson.plugins.git.util.BuildData;
+import hudson.tasks.Mailer;
 import javax.annotation.Nonnull;
 import org.json.JSONObject;
 
@@ -41,15 +45,70 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         String commitSha = buildData != null && buildData.getLastBuiltRevision() != null
                 ? buildData.getLastBuiltRevision().getSha1String()
                 : env.get("GIT_COMMIT", "");
-        String branch = env.getOrDefault("BRANCH_NAME", env.getOrDefault("GIT_BRANCH", ""));
-        if (branch != null && branch.startsWith("origin/")) {
-            branch = branch.substring("origin/".length());
+
+        String headBranch = "";
+        if (buildData != null && buildData.getLastBuiltRevision() != null
+                && !buildData.getLastBuiltRevision().getBranches().isEmpty()) {
+            headBranch = buildData.getLastBuiltRevision().getBranches().iterator().next().getName();
         }
+        if (headBranch == null || headBranch.isEmpty()) {
+            headBranch = env.getOrDefault(
+                    "GITHUB_HEAD_REF",
+                    env.getOrDefault(
+                            "CHANGE_BRANCH",
+                            env.getOrDefault("GIT_BRANCH", env.getOrDefault("BRANCH_NAME", ""))));
+        }
+        if (headBranch != null && headBranch.startsWith("origin/")) {
+            headBranch = headBranch.substring("origin/".length());
+        }
+
         String prNumber = env.getOrDefault("CHANGE_ID", "");
-        String email = env.getOrDefault("GIT_AUTHOR_EMAIL", env.getOrDefault("CHANGE_AUTHOR_EMAIL", ""));
+
+        String email = "";
+        for (Cause cause : run.getCauses()) {
+            if (cause instanceof Cause.UserIdCause) {
+                Cause.UserIdCause userCause = (Cause.UserIdCause) cause;
+                try {
+                    String causeEmail = userCause.getUserEmail();
+                    if (causeEmail != null && !causeEmail.isEmpty()) {
+                        email = causeEmail;
+                        break;
+                    }
+                } catch (NoSuchMethodError ignored) {
+                    // getUserEmail not available
+                }
+                String userId = userCause.getUserId();
+                if (userId != null) {
+                    User u = User.getById(userId, false);
+                    if (u != null) {
+                        Mailer.UserProperty prop = u.getProperty(Mailer.UserProperty.class);
+                        if (prop != null && prop.getAddress() != null) {
+                            email = prop.getAddress();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (email.isEmpty()) {
+            try {
+                Executor exec = run.getExecutor();
+                if (exec != null && exec.getOwner() != null && exec.getOwner().getUser() != null) {
+                    User u = exec.getOwner().getUser();
+                    if (u != null) {
+                        Mailer.UserProperty prop = u.getProperty(Mailer.UserProperty.class);
+                        if (prop != null && prop.getAddress() != null) {
+                            email = prop.getAddress();
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+                // ignore
+            }
+        }
 
         String jobName = run.getParent().getFullName();
-        if (!config.shouldProcess(repoUrl, jobName, branch)) {
+        if (!config.shouldProcess(repoUrl, jobName, headBranch)) {
             listener.getLogger().println("DX: build filtered out.");
             return;
         }
@@ -67,18 +126,20 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         if (pipelineName == null || pipelineName.isEmpty()) {
             pipelineName = "jenkins-" + jobName;
         }
-        String referenceId = pipelineName + " #" + run.getNumber();
+        String referenceId = jobName + " #" + run.getNumber();
+        String sourceId = jobName;
 
         JSONObject payload = new JSONObject();
         payload.put("pipeline_name", pipelineName);
         payload.put("pipeline_source", "jenkins");
         payload.put("reference_id", referenceId);
+        payload.put("source_id", sourceId);
         payload.put("started_at", start);
         payload.put("finished_at", finish);
         payload.put("status", status);
         payload.put("repository", repositoryName);
         payload.put("source_url", repoUrl);
-        payload.put("head_branch", branch != null ? branch : "");
+        payload.put("head_branch", headBranch != null ? headBranch : "");
         payload.put("commit_sha", commitSha != null ? commitSha : "");
         if (prNumber != null && !prNumber.isEmpty()) {
             payload.put("pr_number", prNumber);
@@ -113,8 +174,9 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
         if (repoUrl == null || repoUrl.isEmpty()) {
             return "";
         }
-        repoUrl = repoUrl.replaceAll("\\.git$", "");
-        return repoUrl.substring(repoUrl.lastIndexOf('/') + 1);
+        String cleaned = repoUrl.replaceAll("\\.git$", "");
+        String[] parts = cleaned.split("[/:]");
+        return parts[parts.length - 1];
     }
 }
 
