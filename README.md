@@ -57,9 +57,10 @@ To generate a *.hpi file:
 - Navigate to **Manage Jenkins → System**.
 - In the **DX Data Sharing** section, configure the following:
   - **DX API Base URL** – Base URL for your DX instance, e.g. `https://dx.example.com`.
-  - **Include Repository (regex)** – Optional allowlist for repositories in `owner/repo` form. Example: `^my-org/.+$`.
-  - **Pipeline Name (regex)** – Optional allowlist for Jenkins pipeline names. Example: `^build-and-test$`.
-  - **Include Branch (regex)** – Optional allowlist for branch names. Example: `^main$`.
+  - **Pipeline Source** – Free text identifier added to DX payloads. Default: `Jenkins`.
+  - **Include Repository (regex)** – Optional allowlist for repositories in `owner/repo` form. Default: `.*`. Example: `^my-org/.+$`.
+  - **Pipeline Name (regex)** – Optional allowlist for Jenkins pipeline names. Default: `.*`. Example: `^build-and-test$`.
+  - **Include Branch (regex)** – Optional allowlist for branch names. Default: `.*`. Example: `^main$`.
 
 ## Issues
 

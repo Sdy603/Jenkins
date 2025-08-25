@@ -153,7 +153,7 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
 
         JSONObject payload = new JSONObject();
         payload.put("pipeline_name", pipelineName);
-        payload.put("pipeline_source", "jenkins");
+        payload.put("pipeline_source", config.getPipelineSource());
         payload.put("reference_id", referenceId);
         payload.put("source_id", sourceId);
         payload.put("started_at", start);
