@@ -15,9 +15,10 @@ import org.kohsuke.stapler.StaplerRequest;
 public class DxGlobalConfiguration extends GlobalConfiguration {
 
     private String dxBaseUrl;
-    private String includeRepoPattern;
-    private String includeJobPattern;
-    private String includeBranchPattern;
+    private String pipelineSource = "Jenkins";
+    private String includeRepoPattern = ".*";
+    private String includeJobPattern = ".*";
+    private String includeBranchPattern = ".*";
 
     public DxGlobalConfiguration() {
         load();
@@ -39,8 +40,19 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
     }
 
     @Nullable
+    public String getPipelineSource() {
+        return pipelineSource;
+    }
+
+    @DataBoundSetter
+    public void setPipelineSource(@Nullable String pipelineSource) {
+        this.pipelineSource = pipelineSource;
+        save();
+    }
+
+    @Nullable
     public String getIncludeRepoPattern() {
-        return includeRepoPattern;
+        return includeRepoPattern != null ? includeRepoPattern : ".*";
     }
 
     @DataBoundSetter
@@ -51,7 +63,7 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
 
     @Nullable
     public String getIncludeJobPattern() {
-        return includeJobPattern;
+        return includeJobPattern != null ? includeJobPattern : ".*";
     }
 
     @DataBoundSetter
@@ -62,7 +74,7 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
 
     @Nullable
     public String getIncludeBranchPattern() {
-        return includeBranchPattern;
+        return includeBranchPattern != null ? includeBranchPattern : ".*";
     }
 
     @DataBoundSetter
@@ -79,9 +91,9 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
         if (!isConfigured()) {
             return false;
         }
-        return matches(includeRepoPattern, repo)
-                && matches(includeJobPattern, jobName)
-                && matches(includeBranchPattern, branch);
+        return matches(getIncludeRepoPattern(), repo)
+                && matches(getIncludeJobPattern(), jobName)
+                && matches(getIncludeBranchPattern(), branch);
     }
 
     private boolean matches(@Nullable String pattern, @Nullable String value) {
