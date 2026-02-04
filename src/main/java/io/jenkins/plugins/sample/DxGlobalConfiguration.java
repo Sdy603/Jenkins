@@ -16,7 +16,7 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
 
     private String dxBaseUrl;
     private String pipelineSource = "Jenkins";
-    private String includeRepoPattern = ".*";
+    private String includeRepoPattern = "";
     private String includeJobPattern = ".*";
     private String includeBranchPattern = ".*";
 
@@ -52,7 +52,7 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
 
     @Nullable
     public String getIncludeRepoPattern() {
-        return includeRepoPattern != null ? includeRepoPattern : ".*";
+        return includeRepoPattern != null ? includeRepoPattern : "";
     }
 
     @DataBoundSetter
@@ -91,9 +91,24 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
         if (!isConfigured()) {
             return false;
         }
-        return matches(getIncludeRepoPattern(), repo)
+        return !isDenied(getIncludeRepoPattern(), repo)
                 && matches(getIncludeJobPattern(), jobName)
                 && matches(getIncludeBranchPattern(), branch);
+    }
+
+    private boolean isDenied(@Nullable String pattern, @Nullable String value) {
+        if (pattern == null || pattern.isEmpty()) {
+            return false;
+        }
+        if (value == null) {
+            return false;
+        }
+        try {
+            final Pattern compiled = Pattern.compile(pattern);
+            return compiled.matcher(value).find();
+        } catch (Exception e) {
+            return false; // fail open if regex is invalid
+        }
     }
 
     private boolean matches(@Nullable String pattern, @Nullable String value) {
@@ -129,7 +144,7 @@ public class DxGlobalConfiguration extends GlobalConfiguration {
     }
 
     public FormValidation doCheckIncludeRepoPattern(@QueryParameter String value) {
-        return validateRegex(value, "Repository pattern");
+        return validateRegex(value, "Repository denylist pattern");
     }
 
     public FormValidation doCheckIncludeJobPattern(@QueryParameter String value) {
