@@ -187,6 +187,8 @@ public class DxRunListener extends RunListener<Run<?, ?>> {
             return "cancelled";
         } else if (result.equals(Result.UNSTABLE)) {
             return "failure";
+        } else if (result.equals(Result.NOT_BUILT)) {
+            return "unknown";
         } else {
             return "unknown";
         }
